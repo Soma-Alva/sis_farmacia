@@ -122,13 +122,20 @@
             </div>
 
             <div class="mb-3">
-                <label>Stock Actual</label>
-        
-                <input type="number"
-                    name="stock_actual"
+                <label>Stock Actual (calculado desde lotes)</label>
+
+                <input type="text"
                     class="form-control"
-                    min="0"
-                    value="{{ $producto->stock_actual }}" required>
+                    value="{{ $producto->stock_actual }} unidades"
+                    disabled>
+
+                <div class="form-text">
+                    Este valor se calcula automáticamente sumando los lotes
+                    activos del producto. Para aumentarlo, registra una
+                    <a href="{{ route('compras.create') }}">compra</a>; para
+                    ver el detalle por lote, ve a
+                    <a href="{{ route('lotes.index', ['buscar' => $producto->nombre]) }}">Lotes</a>.
+                </div>
             </div>
 
             <div class="mb-3">

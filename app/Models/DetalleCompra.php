@@ -15,8 +15,20 @@ class DetalleCompra extends Model
     protected $fillable = [
         'id_compra',
         'id_producto',
+        'id_lote',
         'cantidad',
         'precio_unitario',
-        'subtotal'
+        'subtotal',
+        'numero_lote',
+        'fecha_vencimiento'
     ];
+
+    public function producto()
+    {
+        return $this->belongsTo(
+            Producto::class,
+            'id_producto',
+            'id_producto'
+        );
+    }
 }

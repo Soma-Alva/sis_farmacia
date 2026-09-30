@@ -13,6 +13,7 @@ use App\Http\Controllers\CompraController;
 use App\Http\Controllers\BackupController;
 use App\Http\Controllers\ProveedorController;
 use App\Http\Controllers\CategoriaController;
+use App\Http\Controllers\LoteController;
 
 Route::resource('productos', ProductoController::class)
     ->middleware(['auth']);
@@ -87,6 +88,9 @@ Route::middleware('auth')->group(function () {
 //Route::get('/compras', [CompraController::class, 'index']);
 Route::resource('compras', CompraController::class);
 Route::post('/compras/{id}/aprobar', [CompraController::class, 'aprobar'])->name('compras.aprobar');
+
+Route::get('/lotes', [LoteController::class, 'index'])->name('lotes.index');
+Route::get('/lotes/{id}', [LoteController::class, 'show'])->name('lotes.show');
 
 Route::resource('proveedores', ProveedorController::class)
     ->parameters(['proveedores' => 'proveedor'])

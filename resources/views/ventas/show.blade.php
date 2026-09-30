@@ -44,6 +44,10 @@
 
 <th>Subtotal</th>
 
+<th>Lote</th>
+
+<th>Vencimiento</th>
+
 </tr>
 
 </thead>
@@ -61,6 +65,10 @@
 <td>C$ {{ number_format($item->precio_unitario,2) }}</td>
 
 <td>C$ {{ number_format($item->subtotal,2) }}</td>
+
+<td>{{ $item->numero_lote ?? '—' }}</td>
+
+<td>{{ $item->fecha_vencimiento ?? '—' }}</td>
 
 </tr>
 

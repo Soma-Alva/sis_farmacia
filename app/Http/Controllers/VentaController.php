@@ -5,11 +5,12 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\Producto;
+use App\Models\Lote;
 
 
 class VentaController extends Controller
 {
-    // ✅ Mostrar POS
+    // Mostrar POS
     public function index()
     {
 
@@ -28,8 +29,6 @@ class VentaController extends Controller
 
 
     }
-
-   // dd($request->all());
 
     public function historial(Request $request)
     {
@@ -70,12 +69,20 @@ class VentaController extends Controller
             '=',
             'productos.id_producto'
         )
+        ->leftJoin(
+            'lotes',
+            'detalle_ventas.id_lote',
+            '=',
+            'lotes.id_lote'
+        )
         ->where('detalle_ventas.id_venta', $id)
         ->select(
             'productos.nombre',
             'detalle_ventas.cantidad',
             'detalle_ventas.precio_unitario',
-            'detalle_ventas.subtotal'
+            'detalle_ventas.subtotal',
+            'lotes.numero_lote',
+            'lotes.fecha_vencimiento'
         )
         ->get();
 
@@ -91,11 +98,40 @@ class VentaController extends Controller
 
         try {
 
+            $venta = DB::table('ventas')->where('id_venta', $id)->first();
+
+            if (!$venta) {
+                throw new \Exception('Venta no encontrada.');
+            }
+
+            if ($venta->estado === 'ANULADA') {
+                throw new \Exception('Esta venta ya fue anulada anteriormente.');
+            }
+
             $detalle = DB::table('detalle_ventas')
                 ->where('id_venta', $id)
                 ->get();
 
             foreach ($detalle as $item) {
+
+                // Devolver la cantidad al lote específico del que salió.
+                // Ventas anteriores a la migración de lotes no tienen
+                // id_lote (quedó NULL); en ese caso solo se restaura
+                // el stock general del producto, como funcionaba antes.
+                if ($item->id_lote) {
+
+                    $lote = Lote::where('id_lote', $item->id_lote)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($lote) {
+                        $lote->cantidad_actual += $item->cantidad;
+                        if ($lote->estado === 'AGOTADO' && $lote->cantidad_actual > 0) {
+                            $lote->estado = 'ACTIVO';
+                        }
+                        $lote->save();
+                    }
+                }
 
                 DB::table('productos')
                     ->where('id_producto', $item->id_producto)
@@ -103,6 +139,17 @@ class VentaController extends Controller
                         'stock_actual',
                         $item->cantidad
                     );
+
+                DB::table('movimientos_inventario')->insert([
+                    'id_producto'    => $item->id_producto,
+                    'id_lote'        => $item->id_lote,
+                    'tipo_movimiento'=> 'ENTRADA',
+                    'cantidad'       => $item->cantidad,
+                    'descripcion'    => 'Devolución por anulación de venta ' . $venta->numero_ticket,
+                    'motivo'         => 'Anulación de venta',
+                    'id_usuario'     => auth()->user()->id_usuario,
+                    'creado_en'      => now(),
+                ]);
 
             }
 
@@ -147,14 +194,85 @@ class VentaController extends Controller
 
             return back()->with(
                 'error',
-                'No fue posible anular la venta.'
+                'No fue posible anular la venta: ' . $e->getMessage()
             );
 
         }
     }
 
 
-    // ✅ Procesar venta
+    /**
+     * Descuenta `$cantidadRequerida` unidades del producto `$idProducto`
+     * usando FEFO (First Expired, First Out): toma primero del lote
+     * activo que vence más pronto, y si no alcanza, sigue con el
+     * siguiente lote hasta completar la cantidad pedida.
+     *
+     * Bloquea las filas de `lotes` involucradas (lockForUpdate) dentro
+     * de la transacción de la venta, así que si dos cajas venden el
+     * mismo producto al mismo tiempo, la segunda espera a que la
+     * primera termine en vez de vender stock que ya no existe.
+     *
+     * Devuelve un array de consumos: [['id_lote' => x, 'cantidad' => y], ...]
+     * (puede ser más de un lote si uno solo no alcanza).
+     *
+     * @throws \Exception si no hay stock suficiente en ningún lote.
+     */
+    private function consumirLotesFefo(int $idProducto, int $cantidadRequerida): array
+    {
+        $lotes = Lote::disponiblesFefo($idProducto)
+            ->lockForUpdate()
+            ->get();
+
+        $totalDisponible = $lotes->sum('cantidad_actual');
+
+        if ($totalDisponible < $cantidadRequerida) {
+
+            $nombreProducto = Producto::where('id_producto', $idProducto)
+                ->value('nombre') ?? "producto #{$idProducto}";
+
+            throw new \Exception(
+                "Stock insuficiente para {$nombreProducto}. " .
+                "Disponible: {$totalDisponible}, solicitado: {$cantidadRequerida}."
+            );
+        }
+
+        $restante = $cantidadRequerida;
+        $consumos = [];
+
+        foreach ($lotes as $lote) {
+
+            if ($restante <= 0) {
+                break;
+            }
+
+            $tomar = min($lote->cantidad_actual, $restante);
+
+            if ($tomar <= 0) {
+                continue;
+            }
+
+            $lote->cantidad_actual -= $tomar;
+
+            if ($lote->cantidad_actual <= 0) {
+                $lote->cantidad_actual = 0;
+                $lote->estado = 'AGOTADO';
+            }
+
+            $lote->save();
+
+            $consumos[] = [
+                'id_lote'  => $lote->id_lote,
+                'cantidad' => $tomar,
+            ];
+
+            $restante -= $tomar;
+        }
+
+        return $consumos;
+    }
+
+
+    // Procesar venta
     public function procesar(Request $request)
     {
 
@@ -211,20 +329,6 @@ class VentaController extends Controller
             //  Convertir JSON a array
             $productos = json_decode($request->productos, true);
 
-            foreach ($productos as $item) {
-
-                $producto = DB::table('productos')
-                    ->where('id_producto', $item['id'])
-                    ->first();
-
-                if (!$producto) {
-                    throw new \Exception("Producto no encontrado.");
-                }
-                if ($producto->stock_actual < $item['cantidad']) {
-                    throw new \Exception("Stock insuficiente para {$producto->nombre}");
-                }
-            }
-
             //  Generar ticket
             $ticket = 'TICKET-' . time();
 
@@ -255,20 +359,39 @@ class VentaController extends Controller
             ]);
 
 
-            
-
             foreach ($productos as $item) {
 
-                //  Insertar detalle
-                DB::table('detalle_ventas')->insert([
-                    'id_venta' => $ventaId,
-                    'id_producto' => $item['id'],
-                    'cantidad' => $item['cantidad'],
-                    'precio_unitario' => $item['precio'],
-                    'subtotal' => $item['cantidad'] * $item['precio']
-                ]);
+                // Descontar el stock usando FEFO: puede tomar de más
+                // de un lote si el primero que vence no alcanza solo.
+                $consumos = $this->consumirLotesFefo(
+                    (int) $item['id'],
+                    (int) $item['cantidad']
+                );
 
-                //  Descontar stock
+                foreach ($consumos as $consumo) {
+
+                    DB::table('detalle_ventas')->insert([
+                        'id_venta'        => $ventaId,
+                        'id_producto'     => $item['id'],
+                        'id_lote'         => $consumo['id_lote'],
+                        'cantidad'        => $consumo['cantidad'],
+                        'precio_unitario' => $item['precio'],
+                        'subtotal'        => $consumo['cantidad'] * $item['precio'],
+                    ]);
+
+                    DB::table('movimientos_inventario')->insert([
+                        'id_producto'    => $item['id'],
+                        'id_lote'        => $consumo['id_lote'],
+                        'tipo_movimiento'=> 'SALIDA',
+                        'cantidad'       => $consumo['cantidad'],
+                        'descripcion'    => 'Venta ' . $ticket,
+                        'motivo'         => 'Venta',
+                        'id_usuario'     => auth()->user()->id_usuario,
+                        'creado_en'      => now(),
+                    ]);
+                }
+
+                //  Sincronizar el caché de stock en productos
                 DB::table('productos')
                     ->where('id_producto', $item['id'])
                     ->decrement('stock_actual', $item['cantidad']);
@@ -278,7 +401,7 @@ class VentaController extends Controller
             $caja = DB::table('caja')
                 ->where('estado', 'ABIERTA')
                 ->first();
-    //dd($caja);
+
             if ($caja) {
 
                 $saldoAnterior = $caja->saldo_final;
@@ -338,13 +461,12 @@ class VentaController extends Controller
             DB::commit();
 
             return redirect()->route('ventas.index')
-                ->with('success', '✅ Venta realizada correctamente');
+                ->with('success', 'Venta realizada correctamente');
 
         } catch (\Exception $e) {
 
             DB::rollback();
 
-            //dd($e->getMessage());
             return back()->with('error', $e->getMessage());
 
         }

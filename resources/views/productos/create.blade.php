@@ -117,15 +117,15 @@
                 min="0"
                 required>
         </div>
-        <div class="mb-3">
-            <label>Stock Actual</label>
 
-            <input type="number"
-                name="stock_actual"
-                class="form-control"
-                min="0"
-                required>
-        
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i>
+            El stock inicial ya no se ingresa aquí. Este producto nace con
+            <strong>0 unidades</strong>; para que tenga stock, registra una
+            <a href="{{ route('compras.create') }}">compra</a> con su cantidad,
+            número de lote y fecha de vencimiento, y apruébala.
+        </div>
+
         <div class="mb-3">
             <label>Descripción</label>
             <input type="text" name="descripcion" class="form-control" required>

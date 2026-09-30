@@ -100,6 +100,17 @@
             </li>
             @endif
 
+            <!-- Lotes -->
+            @if(auth()->user()->rol->nombre == 'ADMINISTRADOR')
+            <li class="nav-item">
+                <a class="nav-link text-white {{ request()->routeIs('lotes.*') ? 'fw-bold bg-secondary rounded' : '' }}"
+                   href="{{ route('lotes.index') }}">
+                    <i class="bi bi-upc-scan"></i>
+                    Lotes
+                </a>
+            </li>
+            @endif
+
             <!-- Proveedores -->
             @if(auth()->user()->rol->nombre == 'ADMINISTRADOR')
             <li class="nav-item">

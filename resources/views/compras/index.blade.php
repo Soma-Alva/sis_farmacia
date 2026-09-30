@@ -61,9 +61,16 @@
 
                         <td>
 
+                            <a href="{{ route('compras.show', $c->id_compra) }}"
+                               class="btn btn-outline-secondary btn-sm">
+                                Ver
+                            </a>
+
                             @if($c->estado == 'PENDIENTE')
 
-                              <form action="{{ route('compras.aprobar', $c->id_compra) }}" method="POST">
+                              <form action="{{ route('compras.aprobar', $c->id_compra) }}" method="POST"
+                                    class="d-inline"
+                                    onsubmit="return confirm('¿Aprobar esta compra? Esto creará los lotes y sumará el stock.');">
 
                                     @csrf
 

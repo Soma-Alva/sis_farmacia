@@ -40,4 +40,13 @@ class Compra extends Model
             'id_usuario'
         );
     }
+
+    public function detalles()
+    {
+        return $this->hasMany(
+            DetalleCompra::class,
+            'id_compra',
+            'id_compra'
+        );
+    }
 }
