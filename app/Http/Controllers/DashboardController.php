@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\DB;
+use App\Models\Lote;
 
 class DashboardController extends Controller
 {
@@ -56,14 +57,37 @@ class DashboardController extends Controller
                 ->orderBy('mes')
                 ->get();
 
-               
+        // --- Alertas de vencimiento de lotes ---
+
+        // Lotes que ya vencieron y todavía tienen stock: lo más urgente,
+        // deberían dejar de venderse.
+        $lotesVencidos = Lote::with('producto')
+            ->whereNotNull('fecha_vencimiento')
+            ->whereDate('fecha_vencimiento', '<', now())
+            ->where('cantidad_actual', '>', 0)
+            ->orderBy('fecha_vencimiento')
+            ->get();
+
+        // Lotes que vencen dentro de los próximos 90 días (y todavía
+        // no vencieron), para poder priorizar promociones o devolución
+        // al proveedor a tiempo.
+        $lotesPorVencer = Lote::with('producto')
+            ->whereNotNull('fecha_vencimiento')
+            ->whereDate('fecha_vencimiento', '>=', now())
+            ->whereDate('fecha_vencimiento', '<=', now()->addDays(90))
+            ->where('cantidad_actual', '>', 0)
+            ->orderBy('fecha_vencimiento')
+            ->get();
+
         return view('dashboard', compact(
             'ventasHoy',
             'totalProductos',
             'stockBajo',
             'productosStockBajo',
             'productosPorCategoria',
-            'ventasPorMes'
+            'ventasPorMes',
+            'lotesVencidos',
+            'lotesPorVencer'
         ));
     }
 }
