@@ -30,6 +30,10 @@ class Caja extends Model
 
         'tipo_cambio',
 
+        'aplica_iva',
+
+        'iva_porcentaje',
+
         'total_ingresos',
 
         'total_egresos',

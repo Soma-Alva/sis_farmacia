@@ -332,9 +332,23 @@ class VentaController extends Controller
             //  Generar ticket
             $ticket = 'TICKET-' . time();
 
-            //  Calcular valores
-            $subtotal = $request->total / 1.18;
-            $igv = $request->total - $subtotal;
+            //  La caja abierta decide si esta venta lleva IVA y a qué
+            //  tasa (en Nicaragua los medicamentos están exentos por
+            //  el Art. 114 de la Constitución, así que muchas cajas
+            //  de farmacia van a tener esto desmarcado).
+            $cajaAbierta = DB::table('caja')
+                ->where('estado', 'ABIERTA')
+                ->first();
+
+            if ($cajaAbierta && $cajaAbierta->aplica_iva) {
+                $factor = 1 + ($cajaAbierta->iva_porcentaje / 100);
+                $subtotal = $request->total / $factor;
+                $igv = $request->total - $subtotal;
+            } else {
+                $subtotal = $request->total;
+                $igv = 0;
+            }
+
             $cambio = $montoPagado - $request->total;
 
             //  Insertar venta completa
@@ -398,9 +412,8 @@ class VentaController extends Controller
             }
 
             // Registrar movimiento de caja por la venta
-            $caja = DB::table('caja')
-                ->where('estado', 'ABIERTA')
-                ->first();
+            // (reutilizamos $cajaAbierta, ya consultada arriba para el IVA)
+            $caja = $cajaAbierta;
 
             if ($caja) {
 

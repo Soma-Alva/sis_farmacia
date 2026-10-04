@@ -100,6 +100,30 @@
 
         </div>
 
+        <div class="col-md-3 mb-3">
+
+            <div class="card shadow">
+
+                <div class="card-body text-center">
+
+                    <h6>IVA en esta caja</h6>
+
+                    <h4>
+                        @if($caja->aplica_iva)
+                            <span class="badge bg-success">
+                                Sí ({{ number_format($caja->iva_porcentaje, 0) }}%)
+                            </span>
+                        @else
+                            <span class="badge bg-secondary">No</span>
+                        @endif
+                    </h4>
+
+                </div>
+
+            </div>
+
+        </div>
+
     </div>
 
     <div class="card shadow mt-4">
@@ -254,6 +278,37 @@
                             </div>
                         </div>
 
+                        <div class="row">
+                            <div class="col-md-4 mb-3 form-check mt-2">
+                                <input type="checkbox"
+                                    class="form-check-input"
+                                    id="aplica_iva"
+                                    name="aplica_iva"
+                                    value="1"
+                                    >
+                                <label class="form-check-label" for="aplica_iva">
+                                    Aplicar IVA en esta caja
+                                </label>
+                            </div>
+
+                            <div class="col-md-4 mb-3">
+                                <label>Porcentaje de IVA</label>
+                                <input type="number"
+                                    step="0.01"
+                                    min="0"
+                                    max="100"
+                                    name="iva_porcentaje"
+                                    class="form-control"
+                                    value="15">
+                                <div class="form-text">
+                                    Solo aplica si la casilla de arriba está marcada.
+                                    En Nicaragua, los medicamentos están exentos de IVA
+                                    por mandato constitucional — desmarca esta opción
+                                    si todo lo que vendes hoy es medicamento.
+                                </div>
+                            </div>
+                        </div>
+
                         <button class="btn btn-primary">
                             Abrir Caja
                         </button>
@@ -314,6 +369,34 @@
                         class="form-control"
                         rows="3"></textarea>
 
+                </div>
+
+                <div class="mb-3 form-check">
+                    <input type="checkbox"
+                        class="form-check-input"
+                        id="aplica_iva2"
+                        name="aplica_iva"
+                        value="1"
+                        >
+                    <label class="form-check-label" for="aplica_iva2">
+                        Aplicar IVA en esta caja
+                    </label>
+                </div>
+
+                <div class="mb-3">
+                    <label>Porcentaje de IVA</label>
+                    <input type="number"
+                        step="0.01"
+                        min="0"
+                        max="100"
+                        name="iva_porcentaje"
+                        class="form-control"
+                        value="15">
+                    <div class="form-text">
+                        En Nicaragua, los medicamentos están exentos de IVA por
+                        mandato constitucional — desmarca la casilla de arriba
+                        si todo lo que vendes hoy es medicamento.
+                    </div>
                 </div>
 
                 <button class="btn btn-primary">

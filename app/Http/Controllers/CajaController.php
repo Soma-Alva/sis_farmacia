@@ -72,6 +72,10 @@ class CajaController extends Controller
 
             'tipo_cambio' => $request->tipo_cambio,
 
+            'aplica_iva' => $request->boolean('aplica_iva'),
+
+            'iva_porcentaje' => $request->iva_porcentaje ?? 15,
+
             'total_ingresos' => 0,
 
             'total_egresos' => 0,
