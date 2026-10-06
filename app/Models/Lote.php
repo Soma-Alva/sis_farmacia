@@ -49,6 +49,13 @@ class Lote extends Model
             ->where('id_producto', $idProducto)
             ->where('estado', 'ACTIVO')
             ->where('cantidad_actual', '>', 0)
+            // Defensa extra: un lote vencido NUNCA debe venderse,
+            // así el comando que marca estado=VENCIDO no haya corrido
+            // todavía ese día (ej. si vencía hoy mismo).
+            ->where(function ($q) {
+                $q->whereNull('fecha_vencimiento')
+                  ->orWhereDate('fecha_vencimiento', '>=', now()->toDateString());
+            })
             ->orderByRaw('fecha_vencimiento IS NULL, fecha_vencimiento ASC');
     }
 

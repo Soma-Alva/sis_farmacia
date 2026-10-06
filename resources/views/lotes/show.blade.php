@@ -9,6 +9,56 @@
         <a href="{{ route('lotes.index') }}" class="btn btn-secondary btn-sm">Volver</a>
     </div>
 
+    @if(session('success'))
+        <div class="alert alert-success">{{ session('success') }}</div>
+    @endif
+    @if(session('error') || $errors->any())
+        <div class="alert alert-danger">{{ session('error') ?? $errors->first() }}</div>
+    @endif
+
+    @php
+        $yaVencio = $lote->fecha_vencimiento && $lote->fecha_vencimiento->isPast();
+    @endphp
+
+    @if($yaVencio && $lote->cantidad_actual > 0)
+        <div class="card shadow-sm mb-3 border-danger">
+            <div class="card-header bg-danger text-white">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                Este lote está vencido y todavía tiene {{ $lote->cantidad_actual }} unidad(es) en stock
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    No debería seguir vendiéndose (el sistema ya lo bloquea automáticamente
+                    en el punto de venta). Da de baja este stock para sacarlo del inventario
+                    con su motivo registrado.
+                </p>
+                <form action="{{ route('lotes.darDeBaja', $lote->id_lote) }}" method="POST"
+                      onsubmit="return confirm('Esto va a retirar {{ $lote->cantidad_actual }} unidad(es) del stock de forma permanente. ¿Confirmas?');">
+                    @csrf
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-4">
+                            <label class="form-label">Motivo</label>
+                            <select name="motivo_baja" class="form-select" required>
+                                <option value="DESTRUIDO">Destruido</option>
+                                <option value="DEVUELTO_PROVEEDOR">Devuelto al proveedor</option>
+                            </select>
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label">Observaciones (opcional)</label>
+                            <input type="text" name="observaciones" class="form-control"
+                                   placeholder="Ej: acta de destrucción #123">
+                        </div>
+                        <div class="col-md-3">
+                            <button type="submit" class="btn btn-danger w-100">
+                                Dar de baja
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
+
     <div class="row mb-3">
         <div class="col-md-8">
             <div class="card shadow-sm">

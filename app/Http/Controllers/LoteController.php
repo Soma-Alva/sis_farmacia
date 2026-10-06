@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Lote;
+use App\Models\Producto;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -87,5 +88,77 @@ class LoteController extends Controller
             ->get();
 
         return view('lotes.show', compact('lote', 'movimientos', 'ventasDelLote'));
+    }
+
+    /**
+     * Da de baja un lote vencido: lo saca del stock vendible (stock
+     * actual del lote y del producto quedan en 0) y deja registrado
+     * el motivo (destrucción o devolución al proveedor) en
+     * movimientos_inventario, para auditoría. No se borra el lote —
+     * su historial de ventas y de origen debe seguir siendo
+     * consultable.
+     */
+    public function darDeBaja(Request $request, $id)
+    {
+        $request->validate([
+            'motivo_baja' => 'required|in:DESTRUIDO,DEVUELTO_PROVEEDOR',
+            'observaciones' => 'nullable|string|max:500',
+        ]);
+
+        DB::beginTransaction();
+
+        try {
+
+            $lote = Lote::lockForUpdate()->findOrFail($id);
+
+            if ($lote->cantidad_actual <= 0) {
+                throw new \Exception('Este lote ya no tiene stock, no hay nada que dar de baja.');
+            }
+
+            $cantidadDadaDeBaja = $lote->cantidad_actual;
+
+            $producto = Producto::where('id_producto', $lote->id_producto)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $stockAnterior = $producto->stock_actual;
+            $stockNuevo = max(0, $stockAnterior - $cantidadDadaDeBaja);
+
+            $lote->update([
+                'cantidad_actual' => 0,
+                'estado' => 'VENCIDO',
+            ]);
+
+            $producto->update(['stock_actual' => $stockNuevo]);
+
+            $motivoTexto = $request->motivo_baja === 'DESTRUIDO'
+                ? 'Vencimiento - producto destruido'
+                : 'Vencimiento - devuelto al proveedor';
+
+            DB::table('movimientos_inventario')->insert([
+                'id_producto'     => $lote->id_producto,
+                'id_lote'         => $lote->id_lote,
+                'tipo_movimiento' => 'AJUSTE',
+                'cantidad'        => $cantidadDadaDeBaja,
+                'descripcion'     => $motivoTexto . ($request->observaciones ? ' - ' . $request->observaciones : ''),
+                'motivo'          => 'Baja por vencimiento',
+                'saldo_anterior'  => $stockAnterior,
+                'saldo_nuevo'     => $stockNuevo,
+                'id_usuario'      => auth()->user()->id_usuario,
+                'creado_en'       => now(),
+            ]);
+
+            DB::commit();
+
+            return redirect()
+                ->route('lotes.show', $lote->id_lote)
+                ->with('success', "Lote dado de baja: {$cantidadDadaDeBaja} unidad(es) retiradas del stock.");
+
+        } catch (\Exception $e) {
+
+            DB::rollBack();
+
+            return back()->with('error', 'No fue posible dar de baja el lote: ' . $e->getMessage());
+        }
     }
 }

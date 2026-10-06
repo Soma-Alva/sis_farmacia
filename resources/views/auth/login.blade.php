@@ -13,7 +13,7 @@
     <div class="card shadow p-4" style="width: 400px;">
 
         <div class="text-center mb-3">
-            <!-- <img src="/images/logo.png" width="200"> -->
+            <img src="/images/logo.jpeg" width="250" alt="Logo Farmacia Grey">
         </div>
 
         <h4 class="text-center">Iniciar Sesión</h4>

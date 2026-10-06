@@ -91,6 +91,7 @@ Route::post('/compras/{id}/aprobar', [CompraController::class, 'aprobar'])->name
 
 Route::get('/lotes', [LoteController::class, 'index'])->name('lotes.index');
 Route::get('/lotes/{id}', [LoteController::class, 'show'])->name('lotes.show');
+Route::post('/lotes/{id}/dar-de-baja', [LoteController::class, 'darDeBaja'])->name('lotes.darDeBaja');
 
 Route::resource('proveedores', ProveedorController::class)
     ->parameters(['proveedores' => 'proveedor'])
