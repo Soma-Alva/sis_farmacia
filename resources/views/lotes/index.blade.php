@@ -110,7 +110,7 @@
                         @forelse($lotes as $lote)
                             @php
                                 $diasParaVencer = $lote->fecha_vencimiento
-                                    ? now()->diffInDays($lote->fecha_vencimiento, false)
+                                    ? (int) now()->diffInDays($lote->fecha_vencimiento, false)
                                     : null;
 
                                 $claseFila = '';

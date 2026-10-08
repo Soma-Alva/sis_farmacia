@@ -162,7 +162,7 @@
                     <tbody>
                         @foreach($lotesVencidos->concat($lotesPorVencer) as $lote)
                             @php
-                                $dias = now()->diffInDays($lote->fecha_vencimiento, false);
+                                $dias = (int) now()->diffInDays($lote->fecha_vencimiento, false);
                             @endphp
                             <tr class="{{ $dias < 0 ? 'table-danger' : ($dias <= 30 ? 'table-warning' : '') }}">
                                 <td>{{ $lote->producto->nombre ?? 'Producto eliminado' }}</td>
