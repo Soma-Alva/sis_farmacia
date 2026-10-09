@@ -2,166 +2,93 @@
 
 @section('content')
 
-<div class="container">
+<h4 class="gf-page-title mb-3">Historial de Ventas</h4>
 
-    <h3 class="mb-4">Historial de Ventas</h3>
-
-        <form method="GET" action="{{ route('ventas.historial') }}" class="row g-3 mb-4">
-
-            <div class="col-md-3">
-                <input
-                    type="text"
-                    name="ticket"
-                    class="form-control"
-                    placeholder="Buscar Ticket"
-                    value="{{ request('ticket') }}">
-            </div>
-
-            <div class="col-md-3">
-                <input
-                    type="text"
-                    name="cliente"
-                    class="form-control"
-                    placeholder="Buscar Cliente"
-                    value="{{ request('cliente') }}">
-            </div>
-
-            <div class="col-md-3">
-                <input
-                    type="date"
-                    name="fecha"
-                    class="form-control"
-                    value="{{ request('fecha') }}">
-            </div>
-
-            <div class="col-md-3 d-grid">
-                <button class="btn btn-primary">
-                    Buscar
-                </button>
-            </div>
-            <div class="col-md-3 d-grid">
-                <a href="{{ route('ventas.historial') }}"
-                class="btn btn-secondary">
-                    Limpiar filtros
-                </a>
-            </div>
-
-        </form>
-
-        <div class="alert alert-info">
-
-            Total de ventas encontradas:
-
-            <strong>{{ $ventas->count() }}</strong>
-
+<div class="gf-filtros">
+    <form method="GET" action="{{ route('ventas.historial') }}" class="row g-2">
+        <div class="col-md-3">
+            <input type="text" name="ticket" class="form-control" placeholder="Buscar Ticket" value="{{ request('ticket') }}">
         </div>
-
-    @if(session('success'))
-        <div class="alert alert-success">
-            {{ session('success') }}
+        <div class="col-md-3">
+            <input type="text" name="cliente" class="form-control" placeholder="Buscar Cliente" value="{{ request('cliente') }}">
         </div>
-    @endif
-
-    <table class="table table-bordered table-hover">
-
-        <thead class="table-dark">
-
-            <tr>
-                <th>Ticket</th>
-                <th>Fecha</th>
-                <th>Cliente</th>
-                <th>Total</th>
-                <th>Estado</th>
-                <th width="180">Acciones</th>
-            </tr>
-
-        </thead>
-
-        <tbody>
-
-        @forelse($ventas as $venta)
-
-            <tr>
-
-                <td>{{ $venta->numero_ticket }}</td>
-
-                <td>{{ $venta->fecha_venta }}</td>
-
-                <td>{{ $venta->cliente_nombre }}</td>
-
-                <td>C$ {{ number_format($venta->total,2) }}</td>
-
-                <td>
-
-                    @if($venta->estado=="COMPLETADA")
-
-                        <span class="badge bg-success">
-                            COMPLETADA
-                        </span>
-
-                    @else
-
-                        <span class="badge bg-danger">
-                            ANULADA
-                        </span>
-
-                    @endif
-
-                </td>
-
-                <td>
-
-                    <a href="{{ route('ventas.show',$venta->id_venta) }}"
-                       class="btn btn-info btn-sm">
-
-                        Ver
-
-                    </a>
-
-                    @if($venta->estado=="COMPLETADA")
-
-                    <form
-                        action="{{ route('ventas.anular',$venta->id_venta) }}"
-                        method="POST"
-                        style="display:inline;">
-
-                        @csrf
-                        @method('PUT')
-
-                        <button
-                            class="btn btn-danger btn-sm"
-                            onclick="return confirm('¿Desea anular esta venta?')">
-
-                            Anular
-
-                        </button>
-
-                    </form>
-
-                    @endif
-
-                </td>
-
-            </tr>
-
-        @empty
-
-            <tr>
-
-                <td colspan="6" class="text-center">
-
-                    No existen ventas.
-
-                </td>
-
-            </tr>
-
-        @endforelse
-
-        </tbody>
-
-    </table>
-
+        <div class="col-md-3">
+            <input type="date" name="fecha" class="form-control" value="{{ request('fecha') }}">
+        </div>
+        <div class="col-md-2">
+            <button class="gf-btn-soft gf-btn-neutro w-100" style="padding:9px 0;">Buscar</button>
+        </div>
+        <div class="col-md-1">
+            <a href="{{ route('ventas.historial') }}" class="gf-btn-soft gf-btn-apagado d-block text-center" style="padding:9px 0;">
+                <i class="bi bi-x-lg"></i>
+            </a>
+        </div>
+    </form>
 </div>
-    <button class="btn btn-secondary mt-3" onclick="window.history.back();">Volver</button>
+
+<p class="gf-page-subtitle mb-3">Total de ventas encontradas: <strong>{{ $ventas->count() }}</strong></p>
+
+@if(session('success'))
+    <div class="alert alert-success">
+        {{ session('success') }}
+    </div>
+@endif
+
+<div class="gf-card">
+    <div class="p-3">
+        <div class="table-responsive">
+            <table class="gf-table table-hover">
+                <thead>
+                    <tr>
+                        <th>Ticket</th>
+                        <th>Fecha</th>
+                        <th>Cliente</th>
+                        <th>Total</th>
+                        <th>Estado</th>
+                        <th width="180">Acciones</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    @forelse($ventas as $venta)
+                        <tr>
+                            <td class="fw-semibold">{{ $venta->numero_ticket }}</td>
+                            <td>{{ $venta->fecha_venta }}</td>
+                            <td>{{ $venta->cliente_nombre }}</td>
+                            <td>C$ {{ number_format($venta->total,2) }}</td>
+                            <td>
+                                <span class="gf-badge {{ $venta->estado == 'COMPLETADA' ? 'gf-badge-exito' : 'gf-badge-peligro' }}">
+                                    {{ $venta->estado }}
+                                </span>
+                            </td>
+                            <td>
+                                <a href="{{ route('ventas.show',$venta->id_venta) }}" class="gf-btn-soft gf-btn-neutro">
+                                    Ver
+                                </a>
+
+                                @if($venta->estado=="COMPLETADA")
+                                <form action="{{ route('ventas.anular',$venta->id_venta) }}" method="POST" class="d-inline">
+                                    @csrf
+                                    @method('PUT')
+                                    <button class="gf-btn-soft gf-btn-peligro" onclick="return confirm('¿Desea anular esta venta?')">
+                                        Anular
+                                    </button>
+                                </form>
+                                @endif
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">
+                                No existen ventas.
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<button class="gf-btn-soft gf-btn-apagado mt-3" onclick="window.history.back();">Volver</button>
 @endsection

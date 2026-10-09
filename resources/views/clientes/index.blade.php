@@ -2,29 +2,24 @@
 
 @section('content')
 
-<div class="container-fluid">
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="gf-page-title">Clientes</h4>
+    <a href="{{ route('clientes.create') }}" class="gf-btn-primario">
+        <i class="bi bi-plus-lg"></i> Nuevo Cliente
+    </a>
+</div>
 
-    <div class="d-flex justify-content-between mb-3">
-        <h3>Clientes</h3>
-
-        <a href="{{ route('clientes.create') }}"
-           class="btn btn-primary">
-            + Nuevo Cliente
-        </a>
+@if(session('success'))
+    <div class="alert alert-success">
+        {{ session('success') }}
     </div>
+@endif
 
-    @if(session('success'))
-        <div class="alert alert-success">
-            {{ session('success') }}
-        </div>
-    @endif
-
-    <div class="card shadow">
-        <div class="card-body">
-
-            <table class="table table-hover">
-
-                <thead class="table-dark">
+<div class="gf-card">
+    <div class="p-3">
+        <div class="table-responsive">
+            <table class="gf-table table-hover">
+                <thead>
                     <tr>
                         <th>Nombres</th>
                         <th>Apellidos</th>
@@ -37,54 +32,39 @@
                 </thead>
 
                 <tbody>
+                    @foreach($clientes as $cliente)
+                        <tr>
+                            <td class="fw-semibold">{{ $cliente->nombres }}</td>
+                            <td>{{ $cliente->apellidos }}</td>
+                            <td>{{ $cliente->cedula }}</td>
+                            <td>{{ $cliente->telefono }}</td>
+                            <td>{{ $cliente->email }}</td>
 
-                @foreach($clientes as $cliente)
+                            <td>
+                                <span class="gf-badge {{ $cliente->estado ? 'gf-badge-exito' : 'gf-badge-apagado' }}">
+                                    {{ $cliente->estado ? 'Activo' : 'Inactivo' }}
+                                </span>
+                            </td>
 
-                    <tr>
-                        <td>{{ $cliente->nombres }}</td>
-                        <td>{{ $cliente->apellidos }}</td>
-                        <td>{{ $cliente->cedula }}</td>
-                        <td>{{ $cliente->telefono }}</td>
-                        <td>{{ $cliente->email }}</td>
+                            <td>
+                                <a href="{{ route('clientes.edit', $cliente->id_cliente) }}" class="gf-btn-soft gf-btn-neutro">
+                                    Editar
+                                </a>
 
-                        <td>
-                            @if($cliente->estado)
-                                Activo
-                            @else
-                                Inactivo
-                            @endif
-                        </td>
-
-                        <td>
-                            <a href="{{ route('clientes.edit', $cliente->id_cliente) }}"
-                               class="btn btn-warning btn-sm">
-                                Editar
-                            </a>
-
-                            <form action="{{ route('clientes.destroy', $cliente->id_cliente) }}"
-                                  method="POST"
-                                  class="d-inline">
-                                @csrf
-                                @method('DELETE')
-
-                                <button class="btn btn-danger btn-sm"
-                                        onclick="return confirm('¿Eliminar cliente?')">
-                                    Eliminar
-                                </button>
-                            </form>
-                        </td>
-
-                    </tr>
-
-                @endforeach
-
+                                <form action="{{ route('clientes.destroy', $cliente->id_cliente) }}" method="POST" class="d-inline">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button class="gf-btn-soft gf-btn-peligro" onclick="return confirm('¿Eliminar cliente?')">
+                                        Eliminar
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    @endforeach
                 </tbody>
-
             </table>
-
         </div>
     </div>
-
 </div>
 
 @endsection

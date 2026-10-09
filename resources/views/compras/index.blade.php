@@ -2,32 +2,18 @@
 
 @section('content')
 
-<div class="container-fluid">
-
-
 <div class="d-flex justify-content-between align-items-center mb-3">
-
-    <h3>Compras</h3>
-
-    <a href="{{ route('compras.create') }}"
-       class="btn btn-primary">
-
-        <i class="fas fa-plus"></i>
-        Nueva Compra
-
+    <h4 class="gf-page-title">Compras</h4>
+    <a href="{{ route('compras.create') }}" class="gf-btn-primario">
+        <i class="bi bi-plus-lg"></i> Nueva Compra
     </a>
-
 </div>
 
-
-    <div class="card shadow">
-
-        <div class="card-body">
-
-            <table class="table table-hover">
-
-                <thead class="table-dark">
-
+<div class="gf-card">
+    <div class="p-3">
+        <div class="table-responsive">
+            <table class="gf-table table-hover">
+                <thead>
                     <tr>
                         <th>Factura</th>
                         <th>Proveedor</th>
@@ -36,75 +22,48 @@
                         <th>Estado</th>
                         <th>Acciones</th>
                     </tr>
-
                 </thead>
 
                 <tbody>
-
                     @forelse($compras as $c)
-
                     <tr>
-
-                        <td>{{ $c->numero_factura }}</td>
-
-                        <td>
-                            {{ $c->proveedor->nombre ?? 'N/A' }}
-                        </td>
-
+                        <td class="fw-semibold">{{ $c->numero_factura }}</td>
+                        <td>{{ $c->proveedor->nombre ?? 'N/A' }}</td>
                         <td>{{ $c->fecha_compra }}</td>
-
+                        <td>C$ {{ number_format($c->total,2) }}</td>
                         <td>
-                            C$ {{ number_format($c->total,2) }}
+                            <span class="gf-badge {{ $c->estado == 'APROBADA' ? 'gf-badge-exito' : ($c->estado == 'CANCELADA' ? 'gf-badge-peligro' : 'gf-badge-alerta') }}">
+                                {{ $c->estado }}
+                            </span>
                         </td>
-
-                        <td>{{ $c->estado }}</td>
-
                         <td>
-
-                            <a href="{{ route('compras.show', $c->id_compra) }}"
-                               class="btn btn-outline-secondary btn-sm">
+                            <a href="{{ route('compras.show', $c->id_compra) }}" class="gf-btn-soft gf-btn-neutro">
                                 Ver
                             </a>
 
                             @if($c->estado == 'PENDIENTE')
-
-                              <form action="{{ route('compras.aprobar', $c->id_compra) }}" method="POST"
-                                    class="d-inline"
-                                    onsubmit="return confirm('¿Aprobar esta compra? Esto creará los lotes y sumará el stock.');">
-
+                                <form action="{{ route('compras.aprobar', $c->id_compra) }}" method="POST"
+                                      class="d-inline"
+                                      onsubmit="return confirm('¿Aprobar esta compra? Esto creará los lotes y sumará el stock.');">
                                     @csrf
-
-                                    <button type="submit" class="btn btn-success btn-sm">
+                                    <button type="submit" class="gf-btn-soft gf-btn-exito">
                                         Aprobar
                                     </button>
-
                                 </form>
-
                             @endif
-
-                            </td>
+                        </td>
                     </tr>
-
                     @empty
-
                     <tr>
-
-                        <td colspan="5">
+                        <td colspan="6" class="text-center text-muted py-4">
                             No existen compras registradas
                         </td>
-
                     </tr>
-
                     @endforelse
-
                 </tbody>
-
             </table>
-
         </div>
-
     </div>
-
 </div>
 
 @endsection
