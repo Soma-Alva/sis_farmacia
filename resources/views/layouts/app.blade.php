@@ -521,10 +521,21 @@ document.addEventListener('DOMContentLoaded', function () {
                     <strong>{{ optional(auth()->user())->nombre_completo }}</strong>
                 </div>
 
-                <div class="gf-search">
-                    <i class="bi bi-search"></i>
-                    <input type="text" placeholder="Buscar producto, cliente...">
-                </div>
+                @php
+                    $gfBuscables = [
+                        'productos' => 'Buscar producto...',
+                        'compras'   => 'Buscar compra...',
+                        'clientes'  => 'Buscar cliente...',
+                    ];
+                    $gfSeccionBusqueda = collect($gfBuscables)->first(fn($placeholder, $seccion) => request()->routeIs("$seccion.*"));
+                @endphp
+
+                @if($gfSeccionBusqueda)
+                    <div class="gf-search">
+                        <i class="bi bi-search"></i>
+                        <input type="text" id="gf-buscador-tabla" placeholder="{{ $gfSeccionBusqueda }}" autocomplete="off">
+                    </div>
+                @endif
 
                 <div class="gf-topbar-right">
                     <div class="gf-bell"><i class="bi bi-bell"></i></div>
@@ -551,6 +562,28 @@ document.addEventListener('DOMContentLoaded', function () {
 
 <!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    (function () {
+        var buscador = document.getElementById('gf-buscador-tabla');
+        if (!buscador) return;
+
+        var tabla = document.querySelector('.gf-content table.gf-table');
+        if (!tabla) return;
+
+        var filas = tabla.querySelectorAll('tbody tr');
+
+        buscador.addEventListener('input', function () {
+            var termino = buscador.value.trim().toLowerCase();
+
+            filas.forEach(function (fila) {
+                var texto = fila.textContent.toLowerCase();
+                fila.style.display = texto.includes(termino) ? '' : 'none';
+            });
+        });
+    })();
+</script>
+
 @stack('scripts')
 </body>
 </html>
