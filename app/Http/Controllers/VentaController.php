@@ -25,9 +25,29 @@ class VentaController extends Controller
         }
 
         $productos = Producto::where('activo', 1)->get();
-        return view('ventas.index', compact('productos','caja' ));
 
+        // Para cada producto, adjuntamos el lote que se consumiría primero
+        // bajo FEFO (el que vence más pronto), solo como vista previa en
+        // el carrito. El consumo real se decide igual, en procesar().
+        $proximosLotes = Lote::where('estado', 'ACTIVO')
+            ->where('cantidad_actual', '>', 0)
+            ->where(function ($q) {
+                $q->whereNull('fecha_vencimiento')
+                  ->orWhereDate('fecha_vencimiento', '>=', now()->toDateString());
+            })
+            ->orderByRaw('fecha_vencimiento IS NULL, fecha_vencimiento ASC')
+            ->get()
+            ->groupBy('id_producto');
 
+        $productos->each(function ($producto) use ($proximosLotes) {
+            $lote = optional($proximosLotes->get($producto->id_producto))->first();
+            $producto->proximo_lote = $lote->numero_lote ?? null;
+            $producto->proximo_vencimiento = $lote && $lote->fecha_vencimiento
+                ? $lote->fecha_vencimiento->format('d/m/Y')
+                : null;
+        });
+
+        return view('ventas.index', compact('productos', 'caja'));
     }
 
     public function historial(Request $request)
