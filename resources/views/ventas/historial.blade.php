@@ -2,7 +2,11 @@
 
 @section('content')
 
-<h4 class="gf-page-title mb-3">Historial de Ventas</h4>
+<div class="d-flex justify-content-between align-items-center mb-3" >
+    <h4 class="gf-page-title mb-3">Historial de Ventas</h4> 
+    <button class="gf-btn-soft gf-btn-apagado mt-3" onclick="window.history.back();">Volver</button>
+</div>
+
 
 <div class="gf-filtros">
     <form method="GET" action="{{ route('ventas.historial') }}" class="row g-2">
@@ -90,5 +94,5 @@
     </div>
 </div>
 
-<button class="gf-btn-soft gf-btn-apagado mt-3" onclick="window.history.back();">Volver</button>
+
 @endsection
