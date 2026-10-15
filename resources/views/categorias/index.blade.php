@@ -74,6 +74,10 @@
                 </tbody>
             </table>
         </div>
+
+        <div class="px-2 pt-2">
+            {{ $categorias->links('pagination::bootstrap-5') }}
+        </div>
     </div>
 </div>
 

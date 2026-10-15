@@ -255,7 +255,8 @@ class CajaController extends Controller
 
             ->orderByDesc('movimientos_caja.creado_en')
 
-            ->get();
+            ->paginate(15)
+            ->withQueryString();
 
         return view('caja.movimientos', compact('movimientos'));
     }

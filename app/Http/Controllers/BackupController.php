@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -12,16 +14,42 @@ class BackupController extends Controller
     public function index()
     {
         $backupFolder = storage_path('app/backups');
-        $backups = [];
+        $archivos = [];
 
         if (is_dir($backupFolder)) {
             $files = scandir($backupFolder, SCANDIR_SORT_DESCENDING);
-            $backups = array_filter($files, function ($file) {
+            $archivos = array_values(array_filter($files, function ($file) {
                 return str_ends_with($file, '.sql');
-            });
+            }));
         }
 
-        return view('backups.index', compact('backups'));
+        // $backups no viene de una consulta a la base de datos (son
+        // archivos del disco), así que armamos el paginador a mano,
+        // cortando el arreglo completo a los 15 que tocan según la
+        // página actual, igual que en el resto de listados.
+        $porPagina = 15;
+        $paginaActual = Paginator::resolveCurrentPage('page');
+
+        $backups = new LengthAwarePaginator(
+            array_slice($archivos, ($paginaActual - 1) * $porPagina, $porPagina),
+            count($archivos),
+            $porPagina,
+            $paginaActual,
+            ['path' => Paginator::resolveCurrentPath()]
+        );
+
+        // El tamaño total se calcula sobre TODOS los respaldos, no solo
+        // los 15 de la página actual, para que la tarjeta de resumen
+        // sea correcta sin importar en qué página esté el usuario.
+        $tamanoTotal = 0;
+        foreach ($archivos as $archivo) {
+            $ruta = $backupFolder . DIRECTORY_SEPARATOR . $archivo;
+            if (file_exists($ruta)) {
+                $tamanoTotal += filesize($ruta);
+            }
+        }
+
+        return view('backups.index', compact('backups', 'tamanoTotal'));
     }
 
     public function create()

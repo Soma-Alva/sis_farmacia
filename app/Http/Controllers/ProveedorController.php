@@ -23,7 +23,8 @@ class ProveedorController extends Controller
             })
             ->orderByDesc('activo')
             ->orderBy('nombre')
-            ->get();
+            ->paginate(15)
+            ->withQueryString();
 
         return view('proveedores.index', compact('proveedores', 'buscar'));
     }

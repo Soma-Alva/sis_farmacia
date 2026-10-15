@@ -34,23 +34,14 @@
         <div class="gf-stat">
             <div class="icono" style="background:var(--verde-oscuro);"><i class="bi bi-archive"></i></div>
             <div class="etiqueta">Total de respaldos</div>
-            <div class="valor">{{ count($backups) }}</div>
+            <div class="valor">{{ $backups->total() }}</div>
         </div>
     </div>
     <div class="col-md-4">
         <div class="gf-stat">
             <div class="icono" style="background:var(--verde-medio);"><i class="bi bi-hdd"></i></div>
             <div class="etiqueta">Tamaño total</div>
-            @php
-                $totalSize = 0;
-                foreach($backups as $backup) {
-                    $filePath = storage_path('app/backups/' . $backup);
-                    if(file_exists($filePath)) {
-                        $totalSize += filesize($filePath);
-                    }
-                }
-            @endphp
-            <div class="valor">{{ number_format($totalSize / 1024 / 1024, 2) }} MB</div>
+            <div class="valor">{{ number_format($tamanoTotal / 1024 / 1024, 2) }} MB</div>
         </div>
     </div>
     <div class="col-md-4">
@@ -67,7 +58,7 @@
         <i class="bi bi-file-earmark-arrow-down"></i> Archivos de respaldo
     </div>
     <div class="p-3">
-        @if(count($backups) > 0)
+        @if($backups->total() > 0)
             <div class="table-responsive">
                 <table class="gf-table table-hover">
                     <thead>
@@ -112,6 +103,10 @@
                         @endforeach
                     </tbody>
                 </table>
+            </div>
+
+            <div class="px-2 pt-2">
+                {{ $backups->links('pagination::bootstrap-5') }}
             </div>
         @else
             <div class="alert alert-warning mb-0">

@@ -71,7 +71,8 @@ class VentaController extends Controller
 
         $ventas = $query
             ->orderBy('fecha_venta', 'desc')
-            ->get();
+            ->paginate(15)
+            ->withQueryString();
 
         return view('ventas.historial', compact('ventas'));
     }

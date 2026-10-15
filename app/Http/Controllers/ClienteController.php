@@ -17,7 +17,9 @@ class ClienteController extends Controller
         $clientes = Cliente::where('nombres', 'LIKE', "%$buscar%")
             ->orWhere('apellidos', 'LIKE', "%$buscar%")
             ->orWhere('cedula', 'LIKE', "%$buscar%")
-            ->get();
+            ->orderBy('nombres')
+            ->paginate(15)
+            ->withQueryString();
 
         return view('clientes.index', compact('clientes'));
     }

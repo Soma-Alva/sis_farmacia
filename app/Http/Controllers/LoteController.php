@@ -44,7 +44,7 @@ class LoteController extends Controller
         // Por default, mostrar primero lo que tiene stock y vence antes
         $lotes = $query
             ->orderByRaw('lotes.cantidad_actual = 0, lotes.fecha_vencimiento IS NULL, lotes.fecha_vencimiento ASC')
-            ->paginate(20)
+            ->paginate(15)
             ->withQueryString();
 
         // Contadores para las tarjetas resumen de arriba

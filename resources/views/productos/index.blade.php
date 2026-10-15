@@ -5,7 +5,7 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <h4 class="gf-page-title">Productos</h4>
-        <p class="gf-page-subtitle">{{ $productos->count() }} producto(s) registrado(s)</p>
+        <p class="gf-page-subtitle">{{ $productos->total() }} producto(s) registrado(s)</p>
     </div>
 
     <a href="{{ route('productos.create') }}" class="gf-btn-primario">
@@ -82,6 +82,10 @@
                     @endforeach
                 </tbody>
             </table>
+        </div>
+
+        <div class="px-2 pt-2">
+            {{ $productos->links('pagination::bootstrap-5') }}
         </div>
     </div>
 </div>

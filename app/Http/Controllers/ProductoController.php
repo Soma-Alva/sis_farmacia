@@ -14,7 +14,8 @@ class ProductoController extends Controller
         $productos = Producto::with([
             'categoria',
             'proveedor'
-        ])->get();
+        ])->orderBy('nombre')->paginate(15)->withQueryString();
+
         return view('productos.index', compact('productos'));
     }
 

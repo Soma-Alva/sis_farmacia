@@ -30,7 +30,7 @@
     </form>
 </div>
 
-<p class="gf-page-subtitle mb-3">Total de ventas encontradas: <strong>{{ $ventas->count() }}</strong></p>
+<p class="gf-page-subtitle mb-3">Total de ventas encontradas: <strong>{{ $ventas->total() }}</strong></p>
 
 @if(session('success'))
     <div class="alert alert-success">
@@ -90,6 +90,10 @@
                     @endforelse
                 </tbody>
             </table>
+        </div>
+
+        <div class="px-2 pt-2">
+            {{ $ventas->links('pagination::bootstrap-5') }}
         </div>
     </div>
 </div>

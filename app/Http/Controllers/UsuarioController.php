@@ -14,7 +14,10 @@ class UsuarioController extends Controller
      */
     public function index()
     {
-        $usuarios = Usuario::with('rol')->get();
+        $usuarios = Usuario::with('rol')
+            ->orderBy('nombre_completo')
+            ->paginate(15)
+            ->withQueryString();
 
         return view('usuarios.index', compact('usuarios'));
     }

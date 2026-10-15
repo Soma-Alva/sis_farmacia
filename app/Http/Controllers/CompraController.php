@@ -17,7 +17,7 @@ class CompraController extends Controller
         $compras = Compra::with([
             'proveedor',
             'usuario'
-        ])->orderByDesc('id_compra')->get();
+        ])->orderByDesc('id_compra')->paginate(15)->withQueryString();
 
         return view(
             'compras.index',
