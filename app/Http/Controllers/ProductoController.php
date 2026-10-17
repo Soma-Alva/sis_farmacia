@@ -9,12 +9,29 @@ use App\Models\Proveedor;
 
 class ProductoController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $productos = Producto::with([
-            'categoria',
-            'proveedor'
-        ])->orderBy('nombre')->paginate(15)->withQueryString();
+        $buscar = trim((string) $request->input('buscar'));
+
+        $productos = Producto::with(['categoria', 'proveedor'])
+            ->when($buscar !== '', function ($query) use ($buscar) {
+                $query->where(function ($q) use ($buscar) {
+                    $q->where('nombre', 'like', "%{$buscar}%")
+                      ->orWhere('codigo_barra', 'like', "%{$buscar}%");
+                });
+            })
+            ->orderBy('nombre')
+            ->paginate(15)
+            ->withQueryString();
+
+        // El buscador del topbar pide esta misma vista por AJAX (con el
+        // encabezado X-GF-Partial) en cada tecla que el usuario escribe,
+        // para filtrar contra TODA la tabla en el servidor en vez de
+        // solo las 15 filas visibles en pantalla. En ese caso devolvemos
+        // nada más el bloque de la tabla+paginación, no la página entera.
+        if ($request->header('X-GF-Partial')) {
+            return view('productos._tabla', compact('productos'));
+        }
 
         return view('productos.index', compact('productos'));
     }

@@ -12,14 +12,29 @@ class ClienteController extends Controller
      */
     public function index(Request $request)
     {
-       $buscar = $request->buscar;
+        $buscar = trim((string) $request->input('buscar'));
 
-        $clientes = Cliente::where('nombres', 'LIKE', "%$buscar%")
-            ->orWhere('apellidos', 'LIKE', "%$buscar%")
-            ->orWhere('cedula', 'LIKE', "%$buscar%")
+        $clientes = Cliente::when($buscar !== '', function ($query) use ($buscar) {
+                // Agrupado en un where() para que las tres condiciones
+                // viajen juntas; sueltas como orWhere() al nivel de la
+                // consulta, cualquier otro where() que se agregue más
+                // adelante dejaría de aplicar a todas las filas.
+                $query->where(function ($q) use ($buscar) {
+                    $q->where('nombres', 'like', "%{$buscar}%")
+                      ->orWhere('apellidos', 'like', "%{$buscar}%")
+                      ->orWhere('cedula', 'like', "%{$buscar}%");
+                });
+            })
             ->orderBy('nombres')
             ->paginate(15)
             ->withQueryString();
+
+        // El buscador del topbar pide esta vista por AJAX en cada tecla
+        // (encabezado X-GF-Partial) para buscar en TODOS los clientes,
+        // no solo los 15 de la página actual.
+        if ($request->header('X-GF-Partial')) {
+            return view('clientes._tabla', compact('clientes'));
+        }
 
         return view('clientes.index', compact('clientes'));
     }

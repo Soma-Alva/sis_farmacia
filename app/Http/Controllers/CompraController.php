@@ -12,12 +12,30 @@ use Illuminate\Http\Request;
 
 class CompraController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $compras = Compra::with([
-            'proveedor',
-            'usuario'
-        ])->orderByDesc('id_compra')->paginate(15)->withQueryString();
+        $buscar = trim((string) $request->input('buscar'));
+
+        $compras = Compra::with(['proveedor', 'usuario'])
+            ->when($buscar !== '', function ($query) use ($buscar) {
+                $query->where(function ($q) use ($buscar) {
+                    $q->where('numero_factura', 'like', "%{$buscar}%")
+                      ->orWhereHas('proveedor', function ($q2) use ($buscar) {
+                          $q2->where('nombre', 'like', "%{$buscar}%");
+                      });
+                });
+            })
+            ->orderByDesc('id_compra')
+            ->paginate(15)
+            ->withQueryString();
+
+        // Igual que en productos: el buscador del topbar pide esta
+        // vista por AJAX en cada tecla (encabezado X-GF-Partial), para
+        // buscar en TODAS las compras, no solo las 15 de la página
+        // actual. Ahí solo devolvemos la tabla+paginación.
+        if ($request->header('X-GF-Partial')) {
+            return view('compras._tabla', compact('compras'));
+        }
 
         return view(
             'compras.index',

@@ -398,6 +398,11 @@
             gap:6px;
         }
         .gf-btn-primario:hover{ background:var(--verde-oscuro-2); color:#fff; }
+
+        /* Contenedor de resultados del buscador del topbar (productos,
+           compras, clientes): el fundido suave es la única señal de
+           que se está recargando, sin spinners ni saltos bruscos. */
+        #gf-resultados-busqueda{ transition:opacity .15s ease; }
     </style>
 </head>
 
@@ -533,7 +538,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 @if($gfSeccionBusqueda)
                     <div class="gf-search">
                         <i class="bi bi-search"></i>
-                        <input type="text" id="gf-buscador-tabla" placeholder="{{ $gfSeccionBusqueda }}" autocomplete="off">
+                        <input type="text" id="gf-buscador-tabla"
+                               placeholder="{{ $gfSeccionBusqueda }}"
+                               value="{{ request('buscar') }}"
+                               autocomplete="off">
                     </div>
                 @endif
 
@@ -564,22 +572,86 @@ document.addEventListener('DOMContentLoaded', function () {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
+    // Buscador del topbar (productos / compras / clientes): busca en
+    // TODA la tabla, no solo en las 15 filas de la página actual, así
+    // que en cada tecla le pide al servidor la lista filtrada (con el
+    // mismo filtro de la base de datos) y reemplaza la tabla+paginación
+    // por la respuesta. Nada de esto corre en las demás vistas porque
+    // ahí ni el input ni el contenedor existen.
     (function () {
         var buscador = document.getElementById('gf-buscador-tabla');
-        if (!buscador) return;
+        var contenedor = document.getElementById('gf-resultados-busqueda');
+        if (!buscador || !contenedor) return;
 
-        var tabla = document.querySelector('.gf-content table.gf-table');
-        if (!tabla) return;
+        var idPeticionActual = 0;
+        var espera = null;
 
-        var filas = tabla.querySelectorAll('tbody tr');
+        function buscar(termino) {
+            var miId = ++idPeticionActual;
+            var url = window.location.pathname + '?buscar=' + encodeURIComponent(termino);
+
+            contenedor.style.opacity = '0.5';
+
+            fetch(url, {
+                headers: { 'X-GF-Partial': '1' }
+            })
+                .then(function (respuesta) { return respuesta.text(); })
+                .then(function (html) {
+                    // Si mientras esperábamos el usuario ya escribió más
+                    // letras y salió otra petición después de esta,
+                    // ignoramos esta respuesta vieja para no pisar la
+                    // tabla con un resultado desactualizado.
+                    if (miId !== idPeticionActual) return;
+
+                    contenedor.innerHTML = html;
+                    contenedor.style.opacity = '1';
+
+                    // Deja la URL reflejando la búsqueda actual (sin
+                    // recargar la página), para que un refresh o el
+                    // botón "volver" del navegador respeten el filtro.
+                    var urlVisible = window.location.pathname +
+                        (termino ? '?buscar=' + encodeURIComponent(termino) : '');
+                    window.history.replaceState(null, '', urlVisible);
+                })
+                .catch(function () {
+                    contenedor.style.opacity = '1';
+                });
+        }
 
         buscador.addEventListener('input', function () {
-            var termino = buscador.value.trim().toLowerCase();
+            var termino = buscador.value.trim();
 
-            filas.forEach(function (fila) {
-                var texto = fila.textContent.toLowerCase();
-                fila.style.display = texto.includes(termino) ? '' : 'none';
-            });
+            clearTimeout(espera);
+            espera = setTimeout(function () { buscar(termino); }, 350);
+        });
+
+        // Los enlaces de paginación que trae la respuesta son nuevos
+        // cada vez (se reemplaza todo el contenedor), así que hay que
+        // volver a interceptarlos cada vez que cambian: al hacer clic
+        // en "página 2" pedimos esa página por AJAX también, en vez de
+        // dejar que el navegador navegue de página completa.
+        contenedor.addEventListener('click', function (e) {
+            var enlace = e.target.closest('.pagination a');
+            if (!enlace) return;
+
+            e.preventDefault();
+
+            var urlPagina = new URL(enlace.href);
+            contenedor.style.opacity = '0.5';
+
+            fetch(urlPagina.pathname + urlPagina.search, {
+                headers: { 'X-GF-Partial': '1' }
+            })
+                .then(function (respuesta) { return respuesta.text(); })
+                .then(function (html) {
+                    contenedor.innerHTML = html;
+                    contenedor.style.opacity = '1';
+                    window.history.replaceState(null, '', urlPagina.pathname + urlPagina.search);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                })
+                .catch(function () {
+                    contenedor.style.opacity = '1';
+                });
         });
     })();
 </script>
