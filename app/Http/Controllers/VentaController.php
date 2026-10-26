@@ -113,6 +113,44 @@ class VentaController extends Controller
         ));
     }
 
+    /**
+     * Ticket imprimible de una venta, pensado para la impresora
+     * térmica (rollo angosto, sin el layout normal de la app). Reutiliza
+     * la misma consulta que show(), solo que aquí sí mandamos el código
+     * de barras para que aparezca en el detalle del ticket.
+     */
+    public function ticket($id)
+    {
+        $venta = DB::table('ventas')
+            ->leftJoin('usuarios', 'ventas.id_usuario', '=', 'usuarios.id_usuario')
+            ->where('ventas.id_venta', $id)
+            ->select('ventas.*', 'usuarios.nombre_completo as cajero')
+            ->first();
+
+        if (!$venta) {
+            abort(404);
+        }
+
+        $detalle = DB::table('detalle_ventas')
+            ->join(
+                'productos',
+                'detalle_ventas.id_producto',
+                '=',
+                'productos.id_producto'
+            )
+            ->where('detalle_ventas.id_venta', $id)
+            ->select(
+                'productos.nombre',
+                'productos.codigo_barra',
+                'detalle_ventas.cantidad',
+                'detalle_ventas.precio_unitario',
+                'detalle_ventas.subtotal'
+            )
+            ->get();
+
+        return view('ventas.ticket', compact('venta', 'detalle'));
+    }
+
     public function anular($id)
     {
         DB::beginTransaction();
@@ -494,8 +532,13 @@ class VentaController extends Controller
 
             DB::commit();
 
+            // Se queda en el mismo POS (no navega a otra pantalla) para
+            // no interrumpir la fila de clientes; solo le avisamos cuál
+            // fue el id de la venta que acaba de completar, para que la
+            // vista pueda ofrecer "Imprimir ticket" de esa venta.
             return redirect()->route('ventas.index')
-                ->with('success', 'Venta realizada correctamente');
+                ->with('success', 'Venta realizada correctamente')
+                ->with('venta_completada', $ventaId);
 
         } catch (\Exception $e) {
 

@@ -2,7 +2,12 @@
 
 @section('content')
 
-<h4 class="gf-page-title mb-3">Detalle de Venta</h4>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="gf-page-title mb-0">Detalle de Venta</h4>
+    <a href="{{ route('ventas.ticket', $venta->id_venta) }}" target="_blank" class="gf-btn-primario">
+        <i class="bi bi-printer"></i> Imprimir Ticket
+    </a>
+</div>
 
 <div class="gf-card mb-3">
     <div class="p-3 row">

@@ -10,6 +10,20 @@
     <div class="alert alert-danger">{{ session('error') }}</div>
 @endif
 
+@if(session('venta_completada'))
+    <div class="alert alert-success d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span>
+            <i class="bi bi-check-circle"></i>
+            Venta registrada. ¿Desea imprimir el ticket?
+        </span>
+        <a href="{{ route('ventas.ticket', session('venta_completada')) }}"
+           target="_blank"
+           class="gf-btn-primario">
+            <i class="bi bi-printer"></i> Imprimir ticket
+        </a>
+    </div>
+@endif
+
 @php
     // Etiquetas de IVA calculadas aparte (sin paréntesis dentro de
     // {{ }}) para que no haya expresiones PHP largas mezcladas con

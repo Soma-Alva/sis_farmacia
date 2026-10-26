@@ -67,6 +67,10 @@ Route::get('/ventas/historial', [VentaController::class, 'historial'])
     ->name('ventas.historial')
     ->middleware('auth');
 
+Route::get('/ventas/{id}/ticket', [VentaController::class, 'ticket'])
+    ->name('ventas.ticket')
+    ->middleware('auth');
+
 Route::get('/ventas/{id}', [VentaController::class, 'show'])
     ->name('ventas.show')
     ->middleware('auth');
