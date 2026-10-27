@@ -32,7 +32,7 @@
                     <td>C$ {{ number_format($caja->saldo_inicial,2) }}</td>
                 </tr>
                 <tr>
-                    <th>Ventas del día</th>
+                    <th>Ventas del día (efectivo)</th>
                     <td>C$ {{ number_format($ventas,2) }}</td>
                 </tr>
                 <tr>

@@ -113,6 +113,21 @@
         color:rgba(36,36,32,0.5);
     }
 
+    .gf-caja-logout{
+        width:40px;
+        height:40px;
+        border-radius:50%;
+        background:#EDEDEA;
+        color:#6B6B66;
+        border:none;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-size:16px;
+        cursor:pointer;
+        transition:background .12s ease, color .12s ease;
+    }
+    .gf-caja-logout:hover{ background:#FBE9E6; color:#8C3A2A; }
 
     /* ---------- Tarjetas de resumen ---------- */
     .gf-caja-stats{
@@ -265,6 +280,20 @@
         cursor:pointer;
     }
     .gf-caja-refrescar:hover{ opacity:.8; }
+
+    .gf-caja-fecha-select{
+        border-radius:10px;
+        border:1px solid rgba(47,79,62,0.15);
+        padding:9px 30px 9px 12px;
+        font-size:13px;
+        color:var(--carbon);
+        background:#fff;
+    }
+    .gf-caja-fecha-select:focus{
+        outline:none;
+        border-color:var(--verde-medio);
+        box-shadow:0 0 0 .2rem rgba(75,122,97,0.15);
+    }
 </style>
 
 <div class="gf-caja-top">
@@ -315,6 +344,13 @@
             <div class="gf-caja-reloj-hora" id="gf-reloj-hora">--:--:-- --</div>
             <div class="gf-caja-reloj-fecha" id="gf-reloj-fecha">—</div>
         </div>
+
+        <form action="{{ route('logout') }}" method="POST" class="m-0">
+            @csrf
+            <button type="submit" class="gf-caja-logout" title="Cerrar sesión">
+                <i class="bi bi-power"></i>
+            </button>
+        </form>
 
     </div>
 
@@ -431,10 +467,28 @@
     <div class="gf-card">
         <div class="gf-caja-bitacora-header">
             <div>
-                <div class="gf-card-header" style="padding:0;">Bitácora de Movimientos del Día</div>
-                <p class="gf-page-subtitle mb-0">Registro cronológico de entradas, salidas y transacciones POS</p>
+                <div class="gf-card-header" style="padding:0;">Bitácora de Movimientos del Turno</div>
+                <p class="gf-page-subtitle mb-0">
+                    Desde la apertura de este turno ({{ \Carbon\Carbon::parse($caja->fecha_apertura)->format('d/m/Y') }}) hasta ahora
+                </p>
             </div>
             <div class="gf-caja-bitacora-buscador">
+                @if($fechasTurno->count() > 1)
+                    <select id="gf-bitacora-fecha" class="gf-caja-fecha-select" style="width:auto;">
+                        <option value="">Todo el turno</option>
+                        @foreach($fechasTurno as $fecha)
+                            <option value="{{ $fecha }}">
+                                @if($fecha === \Carbon\Carbon::today()->toDateString())
+                                    Hoy ({{ \Carbon\Carbon::parse($fecha)->format('d/m') }})
+                                @elseif($fecha === \Carbon\Carbon::yesterday()->toDateString())
+                                    Ayer ({{ \Carbon\Carbon::parse($fecha)->format('d/m') }})
+                                @else
+                                    {{ \Carbon\Carbon::parse($fecha)->format('d/m/Y') }}
+                                @endif
+                            </option>
+                        @endforeach
+                    </select>
+                @endif
                 <div class="gf-search" style="max-width:240px;">
                     <i class="bi bi-search"></i>
                     <input type="text" id="gf-bitacora-buscar" placeholder="Buscar concepto o tipo..." autocomplete="off">
@@ -459,8 +513,17 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr>
-                            <td>{{ \Carbon\Carbon::parse($caja->hora_apertura)->format('h:i A') }}</td>
+                        @php
+                            $fechaApertura = \Carbon\Carbon::parse($caja->fecha_apertura)->toDateString();
+                            $hoyIso = \Carbon\Carbon::today()->toDateString();
+                        @endphp
+                        <tr data-fecha="{{ $fechaApertura }}">
+                            <td>
+                                @if($fechaApertura !== $hoyIso)
+                                    <span class="gf-subtext" style="display:inline; margin:0;">{{ \Carbon\Carbon::parse($fechaApertura)->format('d/m') }} ·</span>
+                                @endif
+                                {{ \Carbon\Carbon::parse($caja->hora_apertura)->format('h:i A') }}
+                            </td>
                             <td><span class="gf-badge gf-badge-neutro">Apertura</span></td>
                             <td>Fondo inicial de caja</td>
                             <td>Efectivo</td>
@@ -471,8 +534,16 @@
                         </tr>
 
                         @foreach($movimientosHoy as $m)
-                        <tr>
-                            <td>{{ \Carbon\Carbon::parse($m->creado_en)->format('h:i A') }}</td>
+                        @php
+                            $fechaFila = \Carbon\Carbon::parse($m->creado_en)->toDateString();
+                        @endphp
+                        <tr data-fecha="{{ $fechaFila }}">
+                            <td>
+                                @if($fechaFila !== $hoyIso)
+                                    <span class="gf-subtext" style="display:inline; margin:0;">{{ \Carbon\Carbon::parse($fechaFila)->format('d/m') }} ·</span>
+                                @endif
+                                {{ \Carbon\Carbon::parse($m->creado_en)->format('h:i A') }}
+                            </td>
                             <td>
                                 @if($m->id_venta)
                                     <span class="gf-badge gf-badge-exito">Venta POS</span>
@@ -538,18 +609,30 @@
     }
 
     (function () {
+        // Combina el buscador de texto con el filtro de fecha: una fila
+        // se muestra solo si cumple AMBOS (coincide con lo escrito Y es
+        // de la fecha elegida, o "Todo el turno" está seleccionado).
         var buscador = document.getElementById('gf-bitacora-buscar');
+        var selectorFecha = document.getElementById('gf-bitacora-fecha');
         var tabla = document.getElementById('gf-bitacora-tabla');
         if (!buscador || !tabla) return;
 
-        buscador.addEventListener('input', function () {
+        function aplicarFiltros() {
             var termino = buscador.value.trim().toLowerCase();
+            var fecha = selectorFecha ? selectorFecha.value : '';
             var filas = tabla.querySelectorAll('tbody tr');
+
             filas.forEach(function (fila) {
-                var texto = fila.textContent.toLowerCase();
-                fila.style.display = (termino === '' || texto.indexOf(termino) !== -1) ? '' : 'none';
+                var coincideTexto = termino === '' || fila.textContent.toLowerCase().indexOf(termino) !== -1;
+                var coincideFecha = fecha === '' || fila.getAttribute('data-fecha') === fecha;
+                fila.style.display = (coincideTexto && coincideFecha) ? '' : 'none';
             });
-        });
+        }
+
+        buscador.addEventListener('input', aplicarFiltros);
+        if (selectorFecha) {
+            selectorFecha.addEventListener('change', aplicarFiltros);
+        }
     })();
 </script>
 

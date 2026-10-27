@@ -31,13 +31,25 @@ class CajaController extends Controller
             $efectivoTeorico = 0;
             $cajero = null;
             $movimientosHoy = collect();
+            $fechasTurno = collect();
 
             if($caja){
 
-                $ventasHoy = DB::table('ventas')
-                    ->whereDate('fecha_venta', today())
-                    ->where('estado','COMPLETADA')
-                    ->sum('total');
+                // Importante: todo lo que sigue se calcula POR TURNO (desde
+                // que se abrió esta caja, sin importar cuántos días
+                // lleve abierta), no "por hoy". Antes esto filtraba por
+                // whereDate(..., today()), así que si la caja seguía
+                // abierta de un día para otro, un movimiento de ayer
+                // (ej. un egreso) desaparecía de los totales y de la
+                // bitácora aunque siguiera siendo del mismo turno sin
+                // cerrar. El filtro por día (ver $fechasTurno más abajo)
+                // ahora es solo un filtro visual sobre la bitácora, no
+                // afecta los totales de las tarjetas.
+                $ventasHoy = DB::table('movimientos_caja')
+                    ->where('id_caja', $caja->id_caja)
+                    ->where('tipo_movimiento', 'INGRESO')
+                    ->whereNotNull('id_venta')
+                    ->sum('monto');
 
                 // Solo ingresos manuales: los que ya vienen de una venta
                 // se cuentan en $ventasHoy, para no sumarlos dos veces en
@@ -83,13 +95,15 @@ class CajaController extends Controller
                         ->first()
                 )->nombre_completo;
 
-                // Bitácora del día, para mostrarla directo en el
-                // dashboard de caja en vez de mandar a otra pantalla
+                // Bitácora completa del turno (no solo "hoy"), para
+                // mostrarla directo en el dashboard de caja en vez de
+                // mandar a otra pantalla. El filtro de fecha de la vista
+                // deja elegir un día en particular dentro de este turno
+                // sin tener que volver a consultar el servidor.
                 $movimientosHoy = DB::table('movimientos_caja')
                     ->leftJoin('usuarios', 'movimientos_caja.id_usuario', '=', 'usuarios.id_usuario')
                     ->leftJoin('ventas', 'movimientos_caja.id_venta', '=', 'ventas.id_venta')
                     ->where('movimientos_caja.id_caja', $caja->id_caja)
-                    ->whereDate('movimientos_caja.creado_en', today())
                     ->select(
                         'movimientos_caja.*',
                         'usuarios.nombre_completo',
@@ -97,6 +111,18 @@ class CajaController extends Controller
                     )
                     ->orderBy('movimientos_caja.creado_en')
                     ->get();
+
+                // Fechas distintas presentes en este turno (incluida la
+                // de apertura), para armar el filtro "ver un día en
+                // particular" en la bitácora, de más reciente a más
+                // antigua.
+                $fechasTurno = collect([$caja->fecha_apertura])
+                    ->merge($movimientosHoy->pluck('creado_en')->map(
+                        fn($fecha) => \Carbon\Carbon::parse($fecha)->toDateString()
+                    ))
+                    ->unique()
+                    ->sortDesc()
+                    ->values();
             }
 
             return view('caja.index', compact(
@@ -108,7 +134,8 @@ class CajaController extends Controller
                 'egresosCount',
                 'efectivoTeorico',
                 'cajero',
-                'movimientosHoy'
+                'movimientosHoy',
+                'fechasTurno'
             ));
     }
 
@@ -357,20 +384,29 @@ class CajaController extends Controller
 
         }
 
-            $ventas = DB::table('ventas')
-                ->where('estado', 'COMPLETADA')
-                ->whereDate('fecha_venta', today())
-                ->sum('total');
+            // Solo ventas pagadas en EFECTIVO: las pagadas con tarjeta,
+            // transferencia o dólares nunca estuvieron físicamente en la
+            // gaveta, así que no deben sumarse al efectivo esperado
+            // (antes se sumaban todas, sin importar el medio de pago, y
+            // el conteo físico nunca cuadraba).
+            $ventas = DB::table('movimientos_caja')
+                ->where('id_caja', $caja->id_caja)
+                ->where('tipo_movimiento', 'INGRESO')
+                ->where('forma_pago', 'EFECTIVO')
+                ->whereNotNull('id_venta')
+                ->sum('monto');
 
             $ingresos = DB::table('movimientos_caja')
                 ->where('id_caja', $caja->id_caja)
                 ->where('tipo_movimiento', 'INGRESO')
                 ->whereNull('id_venta') // solo ingresos manuales
+                ->where('forma_pago', 'EFECTIVO')
                 ->sum('monto');
 
             $egresos = DB::table('movimientos_caja')
                 ->where('id_caja', $caja->id_caja)
                 ->where('tipo_movimiento', 'EGRESO')
+                ->where('forma_pago', 'EFECTIVO')
                 ->sum('monto');
 
             $saldoEsperado =
@@ -402,23 +438,29 @@ class CajaController extends Controller
                 ->with('error', 'No existe una caja abierta.');
         }
 
-        // Ventas del día
-        $ventas = DB::table('ventas')
-            ->where('estado', 'COMPLETADA')
-            ->whereDate('fecha_venta', today())
-            ->sum('total');
+        // Ventas del día pagadas en EFECTIVO únicamente (ver nota en
+        // arqueo()): las de tarjeta/transferencia/dólares no cuentan
+        // para el efectivo físico esperado.
+        $ventas = DB::table('movimientos_caja')
+            ->where('id_caja', $caja->id_caja)
+            ->where('tipo_movimiento', 'INGRESO')
+            ->where('forma_pago', 'EFECTIVO')
+            ->whereNotNull('id_venta')
+            ->sum('monto');
 
         // Ingresos manuales
         $ingresos = DB::table('movimientos_caja')
             ->where('id_caja', $caja->id_caja)
             ->where('tipo_movimiento', 'INGRESO')
             ->whereNull('id_venta')
+            ->where('forma_pago', 'EFECTIVO')
             ->sum('monto');
 
         // Egresos
         $egresos = DB::table('movimientos_caja')
             ->where('id_caja', $caja->id_caja)
             ->where('tipo_movimiento', 'EGRESO')
+            ->where('forma_pago', 'EFECTIVO')
             ->sum('monto');
 
         // Saldo esperado
@@ -456,23 +498,29 @@ class CajaController extends Controller
 
         }
 
-        // Total de ventas del día
-        $ventas = DB::table('ventas')
-            ->where('estado', 'COMPLETADA')
-            ->whereDate('fecha_venta', today())
-            ->sum('total');
+        // Total de ventas del día pagadas en EFECTIVO únicamente (ver
+        // nota en arqueo()): las de tarjeta/transferencia/dólares no
+        // cuentan para el efectivo físico esperado.
+        $ventas = DB::table('movimientos_caja')
+            ->where('id_caja', $caja->id_caja)
+            ->where('tipo_movimiento', 'INGRESO')
+            ->where('forma_pago', 'EFECTIVO')
+            ->whereNotNull('id_venta')
+            ->sum('monto');
 
         // Ingresos manuales
         $ingresos = DB::table('movimientos_caja')
             ->where('id_caja', $caja->id_caja)
             ->where('tipo_movimiento', 'INGRESO')
             ->whereNull('id_venta')
+            ->where('forma_pago', 'EFECTIVO')
             ->sum('monto');
 
         // Egresos
         $egresos = DB::table('movimientos_caja')
             ->where('id_caja', $caja->id_caja)
             ->where('tipo_movimiento', 'EGRESO')
+            ->where('forma_pago', 'EFECTIVO')
             ->sum('monto');
 
         // Saldo esperado
