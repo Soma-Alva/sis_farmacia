@@ -2,9 +2,11 @@
 
 @section('content')
 
-@if(session('success'))
-    <div class="alert alert-success">{{ session('success') }}</div>
-@endif
+{{--
+    El mensaje de éxito (p. ej. "Venta realizada correctamente") ya lo
+    muestra layouts/app.blade.php para toda la app; mostrarlo también
+    aquí hacía que saliera duplicado al completar una venta.
+--}}
 
 @if(session('error'))
     <div class="alert alert-danger">{{ session('error') }}</div>
