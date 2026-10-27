@@ -87,6 +87,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/caja/abrir', [CajaController::class,'abrir'])
         ->name('caja.abrir');
 
+    Route::put('/caja/tipo-cambio', [CajaController::class,'actualizarTipoCambio'])
+        ->name('caja.tipoCambio.actualizar');
+
 });
 
 //Route::get('/compras', [CompraController::class, 'index']);

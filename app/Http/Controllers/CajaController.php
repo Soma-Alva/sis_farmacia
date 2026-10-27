@@ -27,6 +27,10 @@ class CajaController extends Controller
             $ventasHoy = 0;
             $ingresos = 0;
             $egresos = 0;
+            $egresosCount = 0;
+            $efectivoTeorico = 0;
+            $cajero = null;
+            $movimientosHoy = collect();
 
             if($caja){
 
@@ -35,15 +39,64 @@ class CajaController extends Controller
                     ->where('estado','COMPLETADA')
                     ->sum('total');
 
+                // Solo ingresos manuales: los que ya vienen de una venta
+                // se cuentan en $ventasHoy, para no sumarlos dos veces en
+                // el dashboard (el arqueo/cierre ya filtraba así, el
+                // dashboard no lo hacía y mezclaba ambos montos).
                 $ingresos = DB::table('movimientos_caja')
                     ->where('id_caja',$caja->id_caja)
                     ->where('tipo_movimiento','INGRESO')
+                    ->whereNull('id_venta')
                     ->sum('monto');
 
-                $egresos = DB::table('movimientos_caja')
+                $egresosQuery = DB::table('movimientos_caja')
                     ->where('id_caja',$caja->id_caja)
-                    ->where('tipo_movimiento','EGRESO')
+                    ->where('tipo_movimiento','EGRESO');
+
+                $egresos = (clone $egresosQuery)->sum('monto');
+                $egresosCount = (clone $egresosQuery)->count();
+
+                // Efectivo teórico: a diferencia de caja.saldo_final (que
+                // mezcla ventas en efectivo, tarjeta, transferencia y
+                // dólares), esto solo suma/resta los movimientos cuya
+                // forma_pago es EFECTIVO, que es lo único que debería
+                // estar físicamente en la gaveta y lo que se compara en
+                // el arqueo/cierre.
+                $efectivoIngresos = DB::table('movimientos_caja')
+                    ->where('id_caja', $caja->id_caja)
+                    ->where('tipo_movimiento', 'INGRESO')
+                    ->where('forma_pago', 'EFECTIVO')
                     ->sum('monto');
+
+                $efectivoEgresos = DB::table('movimientos_caja')
+                    ->where('id_caja', $caja->id_caja)
+                    ->where('tipo_movimiento', 'EGRESO')
+                    ->where('forma_pago', 'EFECTIVO')
+                    ->sum('monto');
+
+                $efectivoTeorico = $caja->saldo_inicial + $efectivoIngresos - $efectivoEgresos;
+
+                // Quién abrió este turno, para mostrarlo en el encabezado
+                $cajero = optional(
+                    DB::table('usuarios')
+                        ->where('id_usuario', $caja->id_usuario_apertura)
+                        ->first()
+                )->nombre_completo;
+
+                // Bitácora del día, para mostrarla directo en el
+                // dashboard de caja en vez de mandar a otra pantalla
+                $movimientosHoy = DB::table('movimientos_caja')
+                    ->leftJoin('usuarios', 'movimientos_caja.id_usuario', '=', 'usuarios.id_usuario')
+                    ->leftJoin('ventas', 'movimientos_caja.id_venta', '=', 'ventas.id_venta')
+                    ->where('movimientos_caja.id_caja', $caja->id_caja)
+                    ->whereDate('movimientos_caja.creado_en', today())
+                    ->select(
+                        'movimientos_caja.*',
+                        'usuarios.nombre_completo',
+                        'ventas.numero_ticket'
+                    )
+                    ->orderBy('movimientos_caja.creado_en')
+                    ->get();
             }
 
             return view('caja.index', compact(
@@ -51,8 +104,39 @@ class CajaController extends Controller
                 'abierta',
                 'ventasHoy',
                 'ingresos',
-                'egresos'
+                'egresos',
+                'egresosCount',
+                'efectivoTeorico',
+                'cajero',
+                'movimientosHoy'
             ));
+    }
+
+    /**
+     * Permite corregir la tasa de cambio del día sin tener que cerrar y
+     * volver a abrir la caja: el ícono de lápiz del encabezado manda
+     * aquí. Solo cambia caja.tipo_cambio, no recalcula ventas ya
+     * registradas con la tasa anterior.
+     */
+    public function actualizarTipoCambio(Request $request)
+    {
+        $request->validate([
+            'tipo_cambio' => 'required|numeric|min:0.0001',
+        ]);
+
+        $caja = Caja::where('estado', 'ABIERTA')->first();
+
+        if (!$caja) {
+            return redirect()
+                ->route('caja.index')
+                ->with('error', 'No existe una caja abierta.');
+        }
+
+        $caja->update(['tipo_cambio' => $request->tipo_cambio]);
+
+        return redirect()
+            ->route('caja.index')
+            ->with('success', 'Tasa de cambio actualizada correctamente.');
     }
 
     public function abrir(Request $request)
