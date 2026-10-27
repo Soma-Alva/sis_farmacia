@@ -113,21 +113,6 @@
         color:rgba(36,36,32,0.5);
     }
 
-    .gf-caja-logout{
-        width:40px;
-        height:40px;
-        border-radius:50%;
-        background:#EDEDEA;
-        color:#6B6B66;
-        border:none;
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        font-size:16px;
-        cursor:pointer;
-        transition:background .12s ease, color .12s ease;
-    }
-    .gf-caja-logout:hover{ background:#FBE9E6; color:#8C3A2A; }
 
     /* ---------- Tarjetas de resumen ---------- */
     .gf-caja-stats{
@@ -330,13 +315,6 @@
             <div class="gf-caja-reloj-hora" id="gf-reloj-hora">--:--:-- --</div>
             <div class="gf-caja-reloj-fecha" id="gf-reloj-fecha">—</div>
         </div>
-
-        <form action="{{ route('logout') }}" method="POST" class="m-0">
-            @csrf
-            <button type="submit" class="gf-caja-logout" title="Cerrar sesión">
-                <i class="bi bi-power"></i>
-            </button>
-        </form>
 
     </div>
 

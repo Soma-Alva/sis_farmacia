@@ -519,40 +519,50 @@ document.addEventListener('DOMContentLoaded', function () {
 
         <div class="gf-content">
 
-            <div class="gf-topbar">
+            {{--
+                El dashboard de caja (caja.index) ya trae su propio
+                encabezado con reloj, cajero y botón de cerrar sesión,
+                así que mostrar también el topbar general sería repetir
+                el mismo tipo de información dos veces en la misma
+                pantalla. Las demás vistas de caja (ingreso, egreso,
+                arqueo, movimientos) sí lo siguen usando normal.
+            --}}
+            @unless(request()->routeIs('caja.index'))
+                <div class="gf-topbar">
 
-                <div class="gf-topbar-saludo">
-                    <h6>Bienvenido/a</h6>
-                    <strong>{{ optional(auth()->user())->nombre_completo }}</strong>
-                </div>
-
-                @php
-                    $gfBuscables = [
-                        'productos' => 'Buscar producto...',
-                        'compras'   => 'Buscar compra...',
-                        'clientes'  => 'Buscar cliente...',
-                    ];
-                    $gfSeccionBusqueda = collect($gfBuscables)->first(fn($placeholder, $seccion) => request()->routeIs("$seccion.*"));
-                @endphp
-
-                @if($gfSeccionBusqueda)
-                    <div class="gf-search">
-                        <i class="bi bi-search"></i>
-                        <input type="text" id="gf-buscador-tabla"
-                               placeholder="{{ $gfSeccionBusqueda }}"
-                               value="{{ request('buscar') }}"
-                               autocomplete="off">
+                    <div class="gf-topbar-saludo">
+                        <h6>Bienvenido/a</h6>
+                        <strong>{{ optional(auth()->user())->nombre_completo }}</strong>
                     </div>
-                @endif
 
-                <div class="gf-topbar-right">
-                    <div class="gf-bell"><i class="bi bi-bell"></i></div>
-                    <div class="gf-avatar">
-                        {{ strtoupper(substr(optional(auth()->user())->nombre_completo ?? 'U', 0, 1)) }}
+                    @php
+                        $gfBuscables = [
+                            'productos' => 'Buscar producto...',
+                            'compras'   => 'Buscar compra...',
+                            'clientes'  => 'Buscar cliente...',
+                        ];
+                        $gfSeccionBusqueda = collect($gfBuscables)->first(fn($placeholder, $seccion) => request()->routeIs("$seccion.*"));
+                    @endphp
+
+                    @if($gfSeccionBusqueda)
+                        <div class="gf-search">
+                            <i class="bi bi-search"></i>
+                            <input type="text" id="gf-buscador-tabla"
+                                   placeholder="{{ $gfSeccionBusqueda }}"
+                                   value="{{ request('buscar') }}"
+                                   autocomplete="off">
+                        </div>
+                    @endif
+
+                    <div class="gf-topbar-right">
+                        <div class="gf-bell"><i class="bi bi-bell"></i></div>
+                        <div class="gf-avatar">
+                            {{ strtoupper(substr(optional(auth()->user())->nombre_completo ?? 'U', 0, 1)) }}
+                        </div>
                     </div>
-                </div>
 
-            </div>
+                </div>
+            @endunless
 
             @if(session('success'))
                 <div class="alert alert-success">
