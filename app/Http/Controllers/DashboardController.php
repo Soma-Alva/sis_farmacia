@@ -25,9 +25,23 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
+        // Mismos productos que cuenta $stockBajo (misma condición), con
+        // los datos extra que necesita la ventana de detalle del
+        // dashboard. Los más críticos (menos stock) primero.
         $productosStockBajo = DB::table('productos')
-            ->whereColumn('stock_actual','<=','stock_minimo')
-            ->select('nombre','stock_actual')
+            ->leftJoin('categorias', 'productos.id_categoria', '=', 'categorias.id_categoria')
+            ->whereColumn('productos.stock_actual', '<=', 'productos.stock_minimo')
+            ->select(
+                'productos.nombre',
+                'productos.codigo_barra',
+                'productos.concentracion',
+                'productos.presentacion',
+                'productos.stock_actual',
+                'productos.stock_minimo',
+                'categorias.nombre as categoria'
+            )
+            ->orderBy('productos.stock_actual')
+            ->orderBy('productos.nombre')
             ->get();
 
         $productosPorCategoria = DB::table('categorias')
