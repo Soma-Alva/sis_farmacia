@@ -31,6 +31,7 @@ class CajaController extends Controller
             $efectivoTeorico = 0;
             $cajero = null;
             $movimientosHoy = collect();
+            $ventasPorMetodo = collect();
             $fechasTurno = collect();
 
             if($caja){
@@ -50,6 +51,19 @@ class CajaController extends Controller
                     ->where('tipo_movimiento', 'INGRESO')
                     ->whereNotNull('id_venta')
                     ->sum('monto');
+
+                // Desglose de las ventas del turno por método de pago,
+                // para la tarjeta "Total ingresos" del dashboard. Queda
+                // como ['EFECTIVO' => 25.0, 'TARJETA' => 96.0, ...] — la
+                // vista solo muestra los métodos que de verdad tuvieron
+                // alguna venta, nunca los que están en cero.
+                $ventasPorMetodo = DB::table('movimientos_caja')
+                    ->where('id_caja', $caja->id_caja)
+                    ->where('tipo_movimiento', 'INGRESO')
+                    ->whereNotNull('id_venta')
+                    ->groupBy('forma_pago')
+                    ->selectRaw('forma_pago, SUM(monto) as total')
+                    ->pluck('total', 'forma_pago');
 
                 // Solo ingresos manuales: los que ya vienen de una venta
                 // se cuentan en $ventasHoy, para no sumarlos dos veces en
@@ -135,6 +149,7 @@ class CajaController extends Controller
                 'efectivoTeorico',
                 'cajero',
                 'movimientosHoy',
+                'ventasPorMetodo',
                 'fechasTurno'
             ));
     }

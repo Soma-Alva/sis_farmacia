@@ -113,22 +113,6 @@
         color:rgba(36,36,32,0.5);
     }
 
-    .gf-caja-logout{
-        width:40px;
-        height:40px;
-        border-radius:50%;
-        background:#EDEDEA;
-        color:#6B6B66;
-        border:none;
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        font-size:16px;
-        cursor:pointer;
-        transition:background .12s ease, color .12s ease;
-    }
-    .gf-caja-logout:hover{ background:#FBE9E6; color:#8C3A2A; }
-
     /* ---------- Tarjetas de resumen ---------- */
     .gf-caja-stats{
         display:grid;
@@ -204,6 +188,11 @@
     .gf-caja-stat-dark .gf-caja-stat-foot{ color:rgba(255,255,255,0.85); }
     .gf-caja-stat-foot strong{ color:var(--carbon); }
     .gf-caja-stat-dark .gf-caja-stat-foot strong{ color:#fff; }
+    .gf-caja-foot-wrap{
+        justify-content:flex-start;
+        flex-wrap:wrap;
+        gap:4px 14px;
+    }
 
     /* ---------- Barra de acciones ---------- */
     .gf-caja-acciones-bar{
@@ -281,6 +270,132 @@
     }
     .gf-caja-refrescar:hover{ opacity:.8; }
 
+    /* ---------- Botón "Ver desglose" + modal de ingresos ---------- */
+    .gf-caja-ver-desglose{
+        display:inline-flex;
+        align-items:center;
+        gap:6px;
+        background:var(--verde-pastel);
+        color:var(--verde-oscuro);
+        border:none;
+        border-radius:999px;
+        padding:7px 14px;
+        font-size:12.5px;
+        font-weight:600;
+        cursor:pointer;
+        transition:background .12s ease;
+    }
+    .gf-caja-ver-desglose:hover{ background:#D4EBDA; }
+
+    .gf-modal-ingresos{
+        border:none;
+        border-radius:22px;
+        overflow:hidden;
+        box-shadow:0 24px 60px rgba(47,79,62,0.3);
+    }
+    .gf-modal-header{
+        background:linear-gradient(135deg, var(--verde-oscuro) 0%, var(--verde-medio) 100%);
+        padding:24px 50px 22px 24px;
+        display:flex;
+        align-items:flex-start;
+        gap:14px;
+        position:relative;
+    }
+    .gf-modal-icono{
+        width:46px;
+        height:46px;
+        border-radius:14px;
+        background:rgba(255,255,255,0.18);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-size:20px;
+        color:#fff;
+        flex:0 0 auto;
+    }
+    .gf-modal-titulo{
+        font-family:'Fraunces',serif;
+        font-weight:600;
+        font-size:19px;
+        color:#fff;
+        margin:0;
+    }
+    .gf-modal-sub{
+        font-size:12.5px;
+        color:rgba(255,255,255,0.78);
+        margin:3px 0 0;
+    }
+    .gf-modal-cerrar{
+        position:absolute;
+        top:16px;
+        right:16px;
+        width:32px;
+        height:32px;
+        border-radius:50%;
+        border:none;
+        background:rgba(255,255,255,0.16);
+        color:#fff;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        cursor:pointer;
+        transition:background .12s ease;
+    }
+    .gf-modal-cerrar:hover{ background:rgba(255,255,255,0.3); }
+    .gf-modal-body{
+        background:#fff;
+        padding:18px 24px 24px;
+    }
+    .gf-modal-fila{
+        display:flex;
+        align-items:center;
+        gap:14px;
+        padding:12px 0;
+        border-bottom:1px solid rgba(47,79,62,0.08);
+    }
+    .gf-modal-fila:last-of-type{ border-bottom:none; }
+    .gf-modal-fila-icono{
+        width:42px;
+        height:42px;
+        border-radius:13px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-size:17px;
+        flex:0 0 auto;
+    }
+    .gf-modal-fila-info{ flex:1 1 auto; min-width:0; }
+    .gf-modal-fila-label{
+        font-weight:600;
+        font-size:13.5px;
+        color:var(--carbon);
+    }
+    .gf-modal-fila-sub{
+        font-size:11.5px;
+        color:rgba(36,36,32,0.5);
+    }
+    .gf-modal-fila-monto{
+        font-weight:700;
+        font-size:15px;
+        color:var(--carbon);
+        white-space:nowrap;
+    }
+    .gf-modal-total{
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        margin-top:10px;
+        padding-top:16px;
+        border-top:2px dashed rgba(47,79,62,0.18);
+        font-size:14px;
+        color:rgba(36,36,32,0.6);
+    }
+    .gf-modal-total strong{
+        font-size:21px;
+        color:var(--verde-oscuro);
+        font-family:'Fraunces',serif;
+    }
+
     .gf-caja-fecha-select{
         border-radius:10px;
         border:1px solid rgba(47,79,62,0.15);
@@ -345,13 +460,6 @@
             <div class="gf-caja-reloj-fecha" id="gf-reloj-fecha">—</div>
         </div>
 
-        <form action="{{ route('logout') }}" method="POST" class="m-0">
-            @csrf
-            <button type="submit" class="gf-caja-logout" title="Cerrar sesión">
-                <i class="bi bi-power"></i>
-            </button>
-        </form>
-
     </div>
 
 </div>
@@ -394,9 +502,24 @@
                 <i class="bi bi-arrow-up-right"></i> Ventas &amp; entradas
             </div>
             <div class="gf-caja-stat-divider"></div>
+            @php
+                // Mismos datos que antes se apretaban en el pie de la
+                // tarjeta; ahora se arman aquí para pasarlos a la
+                // ventana flotante (modal), que sí muestra los 4
+                // métodos completos aunque estén en cero.
+                $gfEtiquetasMetodo = [
+                    'EFECTIVO' => ['label' => 'Efectivo', 'icono' => 'bi-cash', 'color' => '#2F6B45', 'fondo' => '#E3F1E7'],
+                    'TARJETA' => ['label' => 'Tarjeta', 'icono' => 'bi-credit-card-2-front', 'color' => '#2F5D8A', 'fondo' => '#E8F0FB'],
+                    'TRANSFERENCIA' => ['label' => 'Transferencia', 'icono' => 'bi-bank', 'color' => '#8A6A1F', 'fondo' => '#FBF3DE'],
+                    'DOLARES' => ['label' => 'Dólar', 'icono' => 'bi-currency-dollar', 'color' => '#6B3FA0', 'fondo' => '#F1EAFB'],
+                ];
+                $gfHayDesglose = $ventasPorMetodo->sum() > 0 || $ingresos > 0;
+            @endphp
             <div class="gf-caja-stat-foot">
-                <span>Ventas POS: C$ {{ number_format($ventasHoy, 2) }}</span>
-                <strong>Otros: C$ {{ number_format($ingresos, 2) }}</strong>
+                <span>{{ $gfHayDesglose ? 'Detalle por método de pago' : 'Sin movimientos todavía' }}</span>
+                <button type="button" class="gf-caja-ver-desglose" data-bs-toggle="modal" data-bs-target="#gfModalIngresos">
+                    <i class="bi bi-eye"></i> Ver
+                </button>
             </div>
         </div>
 
@@ -442,6 +565,62 @@
             </div>
         </div>
 
+    </div>
+
+    {{--
+        Ventana flotante con el desglose completo de ingresos por
+        método de pago. A diferencia del resumen de la tarjeta, aquí sí
+        se muestran los 4 métodos siempre, aunque estén en C$ 0.00.
+    --}}
+    <div class="modal fade" id="gfModalIngresos" tabindex="-1" aria-labelledby="gfModalIngresosTitulo" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content gf-modal-ingresos">
+
+                <div class="gf-modal-header">
+                    <div class="gf-modal-icono"><i class="bi bi-cash-coin"></i></div>
+                    <div>
+                        <h5 class="gf-modal-titulo" id="gfModalIngresosTitulo">Desglose de ingresos</h5>
+                        <p class="gf-modal-sub">Turno actual · desde la apertura</p>
+                    </div>
+                    <button type="button" class="gf-modal-cerrar" data-bs-dismiss="modal" aria-label="Cerrar">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+
+                <div class="gf-modal-body">
+
+                    @foreach($gfEtiquetasMetodo as $gfClave => $gfDatos)
+                        <div class="gf-modal-fila">
+                            <div class="gf-modal-fila-icono" style="background:{{ $gfDatos['fondo'] }}; color:{{ $gfDatos['color'] }};">
+                                <i class="bi {{ $gfDatos['icono'] }}"></i>
+                            </div>
+                            <div class="gf-modal-fila-info">
+                                <div class="gf-modal-fila-label">{{ $gfDatos['label'] }}</div>
+                                <div class="gf-modal-fila-sub">Ventas pagadas con {{ strtolower($gfDatos['label']) }}</div>
+                            </div>
+                            <div class="gf-modal-fila-monto">C$ {{ number_format($ventasPorMetodo[$gfClave] ?? 0, 2) }}</div>
+                        </div>
+                    @endforeach
+
+                    <div class="gf-modal-fila">
+                        <div class="gf-modal-fila-icono" style="background:#EDEDEA; color:#6B6B66;">
+                            <i class="bi bi-plus-circle"></i>
+                        </div>
+                        <div class="gf-modal-fila-info">
+                            <div class="gf-modal-fila-label">Otros ingresos</div>
+                            <div class="gf-modal-fila-sub">Ingresos manuales (no ligados a una venta)</div>
+                        </div>
+                        <div class="gf-modal-fila-monto">C$ {{ number_format($ingresos, 2) }}</div>
+                    </div>
+
+                    <div class="gf-modal-total">
+                        <span>Total ingresos del turno</span>
+                        <strong>C$ {{ number_format($ventasHoy + $ingresos, 2) }}</strong>
+                    </div>
+
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="gf-caja-acciones-bar">
