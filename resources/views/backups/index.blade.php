@@ -41,7 +41,7 @@
         <div class="gf-stat">
             <div class="icono" style="background:var(--verde-medio);"><i class="bi bi-hdd"></i></div>
             <div class="etiqueta">Tamaño total</div>
-            <div class="valor">{{ number_format($tamanoTotal / 1024 / 1024, 2) }} MB</div>
+            <div class="valor">{{ \App\Http\Controllers\BackupController::formatearTamano((int) $tamanoTotal) }}</div>
         </div>
     </div>
     <div class="col-md-4">
@@ -82,7 +82,7 @@
                                     {{ $backup }}
                                 </td>
                                 <td>
-                                    <span class="gf-badge gf-badge-neutro">{{ number_format($fileSize / 1024 / 1024, 2) }} MB</span>
+                                    <span class="gf-badge {{ $fileSize < 200 ? 'gf-badge-peligro' : 'gf-badge-neutro' }}">{{ \App\Http\Controllers\BackupController::formatearTamano((int) $fileSize) }}</span>
                                 </td>
                                 <td class="gf-page-subtitle">{{ date('d/m/Y H:i:s', $modTime) }}</td>
                                 <td class="text-end">
@@ -91,9 +91,9 @@
                                         <i class="bi bi-cloud-download"></i>
                                     </a>
                                     <form method="POST" action="{{ route('backups.restore') }}" class="d-inline"
-                                          onsubmit="return confirm('¿Desea restaurar esta copia de seguridad? Esta acción no se puede deshacer.')">
+                                          onsubmit="return confirm('¿Restaurar esta copia? Se reemplazarán los datos actuales por los del respaldo. Antes se guardará automáticamente una copia de seguridad del estado actual.')">
                                         @csrf
-                                        <input type="hidden" name="file" value="backups/{{ $backup }}">
+                                        <input type="hidden" name="file" value="{{ $backup }}">
                                         <button type="submit" class="gf-btn-soft gf-btn-peligro" title="Restaurar">
                                             <i class="bi bi-arrow-repeat"></i>
                                         </button>
@@ -123,10 +123,10 @@
     </div>
     <div class="p-3">
         <ul class="small mb-0">
-            <li><strong>Crear respaldo:</strong> Guarda una copia completa de la base de datos en la carpeta de almacenamiento.</li>
+            <li><strong>Crear respaldo:</strong> Guarda una copia completa y verificada de la base de datos (estructura y datos).</li>
             <li><strong>Descargar:</strong> Descarga el archivo SQL a tu computadora.</li>
-            <li><strong>Restaurar:</strong> Recarga la base de datos con los datos de una copia anterior.</li>
-            <li><strong>Automático:</strong> Los respaldos se ejecutan automáticamente a las 2:00 AM cada día.</li>
+            <li><strong>Restaurar:</strong> Recarga la base de datos con una copia anterior. Se verifica el archivo y se hace antes un respaldo <code>prerestore_...</code> del estado actual.</li>
+            <li><strong>Automático:</strong> Se crea un respaldo a las 2:00 AM cada día (se conservan los últimos 30). Requiere que el programador de tareas de Laravel esté activo y la PC encendida a esa hora.</li>
         </ul>
     </div>
 </div>

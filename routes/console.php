@@ -12,3 +12,7 @@ Artisan::command('inspire', function () {
 // cron del servidor tenga configurado el scheduler de Laravel
 // (`* * * * * php artisan schedule:run`) para que esto corra solo.
 Schedule::command('lotes:marcar-vencidos')->dailyAt('01:00');
+
+// Respaldo automático de la base de datos todos los días a las 2:00 AM
+// (conserva los últimos 30). Requiere el mismo scheduler que arriba.
+Schedule::command('backup:database --auto')->dailyAt('02:00')->withoutOverlapping();

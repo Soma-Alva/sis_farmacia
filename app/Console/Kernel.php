@@ -12,10 +12,8 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        // Ejecutar respaldo automático cada día a las 2:00 AM
-        $schedule->command('backup:database')->dailyAt('13:35')->withoutOverlapping();
-
-        // Opcional: ejecutar cada 6 horas
+        // Los respaldos automáticos se programan en routes/console.php
+        // (en Laravel 12 este Kernel ya no define el schedule).
         // $schedule->command('backup:database')->everyHours(6)->withoutOverlapping();
     }
 

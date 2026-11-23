@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\DatabaseBackup;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\Paginator;
@@ -19,7 +20,7 @@ class BackupController extends Controller
         if (is_dir($backupFolder)) {
             $files = scandir($backupFolder, SCANDIR_SORT_DESCENDING);
             $archivos = array_values(array_filter($files, function ($file) {
-                return str_ends_with($file, '.sql');
+                return DatabaseBackup::nombreValido($file);
             }));
         }
 
@@ -52,123 +53,60 @@ class BackupController extends Controller
         return view('backups.index', compact('backups', 'tamanoTotal'));
     }
 
-    public function create()
+    public function create(DatabaseBackup $backup)
     {
-        $database = env('DB_DATABASE');
-        $username = env('DB_USERNAME');
-        $password = env('DB_PASSWORD');
-        $host = env('DB_HOST', '127.0.0.1');
-        $port = env('DB_PORT', '3306');
-
-        if (empty($database) || empty($username)) {
-            return back()->with('error', 'No se pudo crear el respaldo porque la configuración de la base de datos no está completa.');
+        try {
+            $r = $backup->crear('backup');
+        } catch (\Throwable $e) {
+            return back()->with('error', 'No se pudo crear el respaldo: ' . $e->getMessage());
         }
 
-        $fileName = 'backup_' . date('Y_m_d_H_i_s') . '.sql';
-        $folder = 'backups';
-        $fullPath = storage_path('app/' . $folder . '/' . $fileName);
-
-        if (!is_dir(dirname($fullPath))) {
-            mkdir(dirname($fullPath), 0755, true);
-        }
-
-        // Intentar usar mysqldump con rutas específicas para Windows
-        $mysqldumpPath = 'C:\\xampp\\mysql\\bin\\mysqldump.exe';
-        if (!file_exists($mysqldumpPath)) {
-            $mysqldumpPath = 'mysqldump';
-        }
-
-        // Construir comando para Windows
-        $command = sprintf(
-            '"%s" --user=%s --password=%s --host=%s --port=%s %s > "%s" 2>nul',
-            $mysqldumpPath,
-            escapeshellarg($username),
-            escapeshellarg($password),
-            escapeshellarg($host),
-            escapeshellarg($port),
-            escapeshellarg($database),
-            $fullPath
-        );
-
-        $output = [];
-        $returnVar = 0;
-        exec($command, $output, $returnVar);
-
-        if ($returnVar !== 0 || !file_exists($fullPath) || filesize($fullPath) === 0) {
-            \Log::error('Backup error', [
-                'returnVar' => $returnVar,
-                'command' => $command,
-                'fileExists' => file_exists($fullPath),
-                'fileSize' => file_exists($fullPath) ? filesize($fullPath) : 0,
-                'output' => implode("\n", $output)
-            ]);
-            return back()->with('error', 'No se pudo crear el respaldo. Verifica que MySQL esté disponible.');
-        }
-
-        return back()->with('success', 'Respaldo creado correctamente en la carpeta de almacenamiento.');
+        return back()->with('success', sprintf(
+            'Respaldo creado y verificado: %s (%s, %d tablas, %s filas).',
+            $r['archivo'],
+            self::formatearTamano($r['bytes']),
+            $r['tablas'],
+            number_format($r['filas'])
+        ));
     }
 
-    public function restore(Request $request)
+    public function restore(Request $request, DatabaseBackup $backup)
     {
-        $request->validate([
-            'file' => 'required|string',
-        ]);
+        $request->validate(['file' => 'required|string']);
 
-        $file = $request->input('file');
-        $fullPath = storage_path('app/' . $file);
-
-        if (!file_exists($fullPath)) {
-            return back()->with('error', 'El archivo de respaldo no existe.');
+        $ruta = DatabaseBackup::rutaDe($request->input('file'));
+        if (!$ruta) {
+            return back()->with('error', 'El archivo de respaldo no existe o su nombre no es válido.');
         }
 
-        $database = env('DB_DATABASE');
-        $username = env('DB_USERNAME');
-        $password = env('DB_PASSWORD');
-        $host = env('DB_HOST', '127.0.0.1');
-        $port = env('DB_PORT', '3306');
-
-        // Intentar usar mysql con rutas específicas para Windows
-        $mysqlPath = 'C:\\xampp\\mysql\\bin\\mysql.exe';
-        if (!file_exists($mysqlPath)) {
-            $mysqlPath = 'mysql';
+        try {
+            $r = $backup->restaurar($ruta);
+        } catch (\Throwable $e) {
+            return back()->with('error', $e->getMessage());
         }
 
-        $command = sprintf(
-            '"%s" --user=%s --password=%s --host=%s --port=%s %s < "%s" 2>nul',
-            $mysqlPath,
-            escapeshellarg($username),
-            escapeshellarg($password),
-            escapeshellarg($host),
-            escapeshellarg($port),
-            escapeshellarg($database),
-            $fullPath
-        );
-
-        $output = [];
-        $returnVar = 0;
-        exec($command, $output, $returnVar);
-
-        if ($returnVar !== 0) {
-            \Log::error('Restore error', [
-                'returnVar' => $returnVar,
-                'command' => $command,
-                'file' => $file,
-                'output' => implode("\n", $output)
-            ]);
-            return back()->with('error', 'No se pudo restaurar la base de datos.');
-        }
-
-        return back()->with('success', 'Base de datos restaurada correctamente.');
+        return back()->with('success', 'Base de datos restaurada correctamente. Antes de restaurar se guardó una copia de seguridad del estado anterior: ' . $r['seguridad']);
     }
 
     public function download($file)
     {
-        $path = storage_path('app/backups/' . basename($file));
+        $path = DatabaseBackup::rutaDe($file);
 
-        if (!file_exists($path)) {
+        if (!$path) {
             abort(404);
         }
 
         return response()->download($path);
+    }
+
+    public static function formatearTamano(int $bytes): string
+    {
+        if ($bytes >= 1048576) {
+            return number_format($bytes / 1048576, 2) . ' MB';
+        }
+        if ($bytes >= 1024) {
+            return number_format($bytes / 1024, 1) . ' KB';
+        }
+        return $bytes . ' bytes';
     }
 }
