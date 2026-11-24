@@ -14,6 +14,7 @@ use App\Http\Controllers\BackupController;
 use App\Http\Controllers\ProveedorController;
 use App\Http\Controllers\CategoriaController;
 use App\Http\Controllers\LoteController;
+use App\Http\Controllers\ReporteController;
 
 Route::resource('productos', ProductoController::class)
     ->middleware(['auth']);
@@ -147,3 +148,23 @@ Route::resource('categorias', CategoriaController::class)
         Route::get('/backups/download/{file}', [BackupController::class, 'download'])
             ->name('backups.download');
     });
+
+// Reportes (solo administrador: incluyen costos y utilidades)
+Route::middleware(['auth', 'role:ADMINISTRADOR'])->prefix('reportes')->group(function () {
+    Route::get('/', [ReporteController::class, 'index'])->name('reportes.index');
+
+    Route::get('/ingresos-egresos', [ReporteController::class, 'ingresosEgresos'])->name('reportes.ingresos-egresos');
+    Route::get('/ingresos-egresos/excel', [ReporteController::class, 'ingresosEgresosExcel'])->name('reportes.ingresos-egresos.excel');
+
+    Route::get('/balance', [ReporteController::class, 'balance'])->name('reportes.balance');
+    Route::get('/balance/excel', [ReporteController::class, 'balanceExcel'])->name('reportes.balance.excel');
+
+    Route::get('/ventas', [ReporteController::class, 'ventas'])->name('reportes.ventas');
+    Route::get('/ventas/excel', [ReporteController::class, 'ventasExcel'])->name('reportes.ventas.excel');
+
+    Route::get('/kardex', [ReporteController::class, 'kardex'])->name('reportes.kardex');
+    Route::get('/kardex/excel', [ReporteController::class, 'kardexExcel'])->name('reportes.kardex.excel');
+
+    Route::get('/lotes', [ReporteController::class, 'lotes'])->name('reportes.lotes');
+    Route::get('/lotes/excel', [ReporteController::class, 'lotesExcel'])->name('reportes.lotes.excel');
+});

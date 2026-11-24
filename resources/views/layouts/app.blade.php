@@ -468,6 +468,17 @@ document.addEventListener('DOMContentLoaded', function () {
         </ul>
         @endif
 
+        @if(auth()->user()->rol->nombre == 'ADMINISTRADOR')
+        <div class="gf-nav-section">Análisis</div>
+        <ul class="gf-nav">
+            <li>
+                <a href="{{ route('reportes.index') }}" class="{{ request()->routeIs('reportes.*') ? 'activo' : '' }}">
+                    <i class="bi bi-bar-chart-line"></i> Reportes
+                </a>
+            </li>
+        </ul>
+        @endif
+
         <div class="gf-nav-section">Personas</div>
         <ul class="gf-nav">
             @if(auth()->user()->rol->nombre == 'ADMINISTRADOR')
