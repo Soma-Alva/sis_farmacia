@@ -18,7 +18,12 @@ class Usuario extends Authenticatable
         'email',
         'password_hash',
         'nombre_completo',
-        'id_rol'
+        'id_rol',
+        'activo'
+    ];
+
+    protected $casts = [
+        'activo' => 'boolean',
     ];
 
     protected $hidden = ['password_hash'];

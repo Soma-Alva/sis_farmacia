@@ -18,7 +18,9 @@ class AuthController extends Controller
     {
         $credentials = [
             'username' => $request->username,
-            'password' => $request->password
+            'password' => $request->password,
+            // Un usuario desactivado no puede iniciar sesión
+            'activo' => 1,
         ];
 
         if (Auth::attempt($credentials)) {

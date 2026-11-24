@@ -49,7 +49,7 @@
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" class="gf-btn-soft gf-btn-peligro"
-                                            onclick="return confirm('¿Desea eliminar este usuario?')">
+                                            onclick="return confirm('¿Desea eliminar este usuario? Si tiene historial (ventas, caja, compras) no se borra: se desactiva.')">
                                         Eliminar
                                     </button>
                                 </form>

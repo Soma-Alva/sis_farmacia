@@ -54,6 +54,12 @@
             </select>
         </div>
 
+        <div class="form-check form-switch mb-3">
+            <input class="form-check-input" type="checkbox" role="switch" name="activo" value="1" id="activo"
+                   {{ $usuario->activo ? 'checked' : '' }}>
+            <label class="form-check-label" for="activo">Usuario activo (puede iniciar sesión)</label>
+        </div>
+
         <button type="submit" class="btn btn-success">
             Actualizar Usuario
         </button>
