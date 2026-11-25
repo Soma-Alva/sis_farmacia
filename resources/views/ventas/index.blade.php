@@ -357,7 +357,14 @@
         cursor:pointer;
     }
     .gf-cant-stepper button:hover{ background:var(--verde-claro); }
-    .gf-cant-stepper span{ min-width:22px; text-align:center; font-weight:600; }
+    .gf-cant-stepper input{
+        width:56px; height:26px; text-align:center; font-weight:600;
+        border:1px solid rgba(47,79,62,0.18); border-radius:7px;
+        color:var(--carbon); -moz-appearance:textfield;
+    }
+    .gf-cant-stepper input::-webkit-outer-spin-button,
+    .gf-cant-stepper input::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+    .gf-cant-stepper input:focus{ outline:none; border-color:var(--verde-medio); box-shadow:0 0 0 .15rem rgba(75,122,97,0.15); }
 </style>
 
 @php
@@ -451,6 +458,30 @@
         render();
     }
 
+    // Cantidad escrita a mano (para cantidades grandes sin dar click
+    // muchas veces). Vacío o inválido: se conserva la anterior; mayor
+    // al stock: se ajusta al máximo disponible; 0 o menos: quita el ítem.
+    function fijarCantidad(id, valor){
+        let item = carrito.find(p => p.id === id);
+        if (!item) return;
+
+        let n = parseInt(valor, 10);
+        if (isNaN(n)){ render(); return; }
+
+        if (n <= 0){
+            removerItem(id);
+            return;
+        }
+
+        if (n > item.stock){
+            alert('Stock insuficiente. Máximo disponible: ' + item.stock + '.');
+            n = item.stock;
+        }
+
+        item.cantidad = n;
+        render();
+    }
+
     function cancelarVenta(){
         if (carrito.length === 0) return;
         if (!confirm('¿Deseas vaciar el carrito y cancelar esta venta?')) return;
@@ -485,7 +516,10 @@
                         <td class="text-center">
                             <div class="gf-cant-stepper">
                                 <button type="button" onclick="cambiarCantidad(${p.id}, -1)">-</button>
-                                <span>${p.cantidad}</span>
+                                <input type="number" min="1" max="${p.stock}" value="${p.cantidad}"
+                                       onfocus="this.select()"
+                                       onchange="fijarCantidad(${p.id}, this.value)"
+                                       onkeydown="if(event.key==='Enter'){ this.blur(); }">
                                 <button type="button" onclick="cambiarCantidad(${p.id}, 1)">+</button>
                             </div>
                         </td>
