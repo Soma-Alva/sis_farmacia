@@ -67,6 +67,10 @@
                     <td>C$ {{ number_format($ventas, 2) }}</td>
                 </tr>
                 <tr>
+                    <th>Ventas en dólares (equiv. C$)</th>
+                    <td>C$ {{ number_format($ventasDolares, 2) }}</td>
+                </tr>
+                <tr>
                     <th>Ingresos manuales</th>
                     <td>C$ {{ number_format($ingresos, 2) }}</td>
                 </tr>
@@ -85,9 +89,14 @@
             @csrf
 
             <div class="mb-3">
-                <label class="gf-form-label">Efectivo contado</label>
+                <label class="gf-form-label">Córdobas contados (C$)</label>
                 <input type="number" step="0.01" min="0" name="saldo_contado"
                        class="gf-form-control" required>
+            </div>
+            <div class="mb-3">
+                <label class="gf-form-label">Dólares contados (US$) — tipo de cambio {{ number_format($caja->tipo_cambio, 2) }}</label>
+                <input type="number" step="0.01" min="0" name="dolares_contados" value="0"
+                       class="gf-form-control">
             </div>
 
             <div class="d-flex gap-2 mt-4">

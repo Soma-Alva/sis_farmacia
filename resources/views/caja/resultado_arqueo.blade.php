@@ -36,6 +36,10 @@
                     <td>C$ {{ number_format($ventas,2) }}</td>
                 </tr>
                 <tr>
+                    <th>Ventas en dólares (equiv. C$)</th>
+                    <td>C$ {{ number_format($ventasDolares,2) }}</td>
+                </tr>
+                <tr>
                     <th>Ingresos</th>
                     <td>C$ {{ number_format($ingresos,2) }}</td>
                 </tr>
@@ -49,7 +53,8 @@
                 </tr>
                 <tr>
                     <th>Efectivo contado</th>
-                    <td>C$ {{ number_format($contado,2) }}</td>
+                    <td>C$ {{ number_format($contado,2) }}
+                        <small class="text-muted">(C$ {{ number_format($contadoCordobas,2) }} + US$ {{ number_format($dolaresContados,2) }})</small></td>
                 </tr>
                 <tr>
                     <th>Diferencia</th>
@@ -66,6 +71,20 @@
             </table>
         </div>
 
+        <div class="mt-3">
+            @if(abs($diferencia) >= 0.01)
+                <div class="gf-badge gf-badge-peligro">El efectivo no cuadra: recuenta y vuelve a calcular.</div>
+            @endif
+            @if(!$conciliacion['ok'])
+                <div class="gf-badge gf-badge-peligro mt-2">
+                    {{ $conciliacion['motivo'] }}
+                    <a href="{{ route('caja.conciliacion') }}">Ir a conciliación bancaria</a>
+                </div>
+            @elseif($conciliacion['requerida'])
+                <div class="gf-badge gf-badge-exito mt-2">Conciliación bancaria cuadrada</div>
+            @endif
+        </div>
+
         <div class="mt-4 d-flex justify-content-between">
             <a href="{{ route('caja.index') }}" class="gf-btn-soft gf-btn-apagado">
                 Volver
@@ -73,8 +92,10 @@
 
             <form action="{{ route('caja.cerrar') }}" method="POST">
                 @csrf
-                <input type="hidden" name="saldo_contado" value="{{ $contado }}">
-                <button class="gf-btn-primario" style="background:#8C3A2A;">
+                <input type="hidden" name="saldo_contado" value="{{ $contadoCordobas }}">
+                <input type="hidden" name="dolares_contados" value="{{ $dolaresContados }}">
+                @php $puedeCerrar = abs($diferencia) < 0.01 && $conciliacion['ok']; @endphp
+                <button class="gf-btn-primario" style="background:#8C3A2A;" {{ $puedeCerrar ? '' : 'disabled' }}>
                     <i class="bi bi-lock"></i> Cerrar Caja
                 </button>
             </form>

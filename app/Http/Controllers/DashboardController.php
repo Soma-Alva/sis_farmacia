@@ -76,7 +76,7 @@ class DashboardController extends Controller
         if ($caja) {
             $mov = DB::table('movimientos_caja')
                 ->where('id_caja', $caja->id_caja)
-                ->where('forma_pago', 'EFECTIVO')
+                ->whereIn('forma_pago', ['EFECTIVO', 'DOLARES'])
                 ->selectRaw("COALESCE(SUM(CASE WHEN tipo_movimiento='INGRESO' THEN monto ELSE -monto END),0) as neto")
                 ->value('neto');
             $efectivoEnCaja = (float) $caja->saldo_inicial + (float) $mov;

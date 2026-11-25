@@ -33,6 +33,10 @@ class CajaController extends Controller
             $movimientosHoy = collect();
             $ventasPorMetodo = collect();
             $fechasTurno = collect();
+            $bancoTarjeta = 0;
+            $bancoTransferencia = 0;
+            $bancoCount = 0;
+            $ultimaConciliacion = null;
 
             if($caja){
 
@@ -88,19 +92,18 @@ class CajaController extends Controller
                 // forma_pago es EFECTIVO, que es lo único que debería
                 // estar físicamente en la gaveta y lo que se compara en
                 // el arqueo/cierre.
-                $efectivoIngresos = DB::table('movimientos_caja')
-                    ->where('id_caja', $caja->id_caja)
-                    ->where('tipo_movimiento', 'INGRESO')
-                    ->where('forma_pago', 'EFECTIVO')
-                    ->sum('monto');
+                $efectivoTeorico = $this->resumenEfectivo($caja)['saldoEsperado'];
 
-                $efectivoEgresos = DB::table('movimientos_caja')
+                // Pagos que van al banco (tarjeta + transferencia), netos
+                // de egresos por el mismo medio (p. ej. devoluciones).
+                $banco = $this->totalesBanco($caja->id_caja);
+                $bancoTarjeta = $banco['TARJETA'];
+                $bancoTransferencia = $banco['TRANSFERENCIA'];
+                $bancoCount = $banco['count'];
+                $ultimaConciliacion = DB::table('conciliaciones_bancarias')
                     ->where('id_caja', $caja->id_caja)
-                    ->where('tipo_movimiento', 'EGRESO')
-                    ->where('forma_pago', 'EFECTIVO')
-                    ->sum('monto');
-
-                $efectivoTeorico = $caja->saldo_inicial + $efectivoIngresos - $efectivoEgresos;
+                    ->orderByDesc('id_conciliacion')
+                    ->first();
 
                 // Quién abrió este turno, para mostrarlo en el encabezado
                 $cajero = optional(
@@ -147,6 +150,10 @@ class CajaController extends Controller
                 'egresos',
                 'egresosCount',
                 'efectivoTeorico',
+                'bancoTarjeta',
+                'bancoTransferencia',
+                'bancoCount',
+                'ultimaConciliacion',
                 'cajero',
                 'movimientosHoy',
                 'ventasPorMetodo',
@@ -387,193 +394,249 @@ class CajaController extends Controller
         return view('caja.movimientos', compact('movimientos'));
     }
 
+    /**
+     * Totales del turno de los pagos que van al banco. Ingresos menos
+     * egresos por cada medio, y cantidad de movimientos de ingreso.
+     */
+    private function totalesBanco($idCaja): array
+    {
+        $res = ['TARJETA' => 0.0, 'TRANSFERENCIA' => 0.0, 'count' => 0];
+
+        $filas = DB::table('movimientos_caja')
+            ->where('id_caja', $idCaja)
+            ->whereIn('forma_pago', ['TARJETA', 'TRANSFERENCIA'])
+            ->get(['tipo_movimiento', 'forma_pago', 'monto']);
+
+        foreach ($filas as $f) {
+            $signo = $f->tipo_movimiento === 'INGRESO' ? 1 : -1;
+            $res[$f->forma_pago] += $signo * (float) $f->monto;
+            if ($f->tipo_movimiento === 'INGRESO') {
+                $res['count']++;
+            }
+        }
+
+        return $res;
+    }
+
+    /**
+     * Conciliación bancaria: arqueo de los pagos que NO pasan por la
+     * gaveta. Se compara lo registrado por el sistema contra lo que
+     * confirma el banco / voucher del POS.
+     */
+    public function conciliacion()
+    {
+        $caja = Caja::where('estado', 'ABIERTA')->first();
+
+        if (!$caja) {
+            return redirect()->route('caja.index')->with('error', 'No existe una caja abierta.');
+        }
+
+        $totales = $this->totalesBanco($caja->id_caja);
+
+        $pagos = DB::table('movimientos_caja')
+            ->leftJoin('ventas', 'movimientos_caja.id_venta', '=', 'ventas.id_venta')
+            ->where('movimientos_caja.id_caja', $caja->id_caja)
+            ->whereIn('movimientos_caja.forma_pago', ['TARJETA', 'TRANSFERENCIA'])
+            ->select('movimientos_caja.*', 'ventas.numero_ticket')
+            ->orderBy('movimientos_caja.creado_en')
+            ->get();
+
+        $historial = DB::table('conciliaciones_bancarias')
+            ->leftJoin('usuarios', 'conciliaciones_bancarias.id_usuario', '=', 'usuarios.id_usuario')
+            ->where('id_caja', $caja->id_caja)
+            ->orderByDesc('id_conciliacion')
+            ->select('conciliaciones_bancarias.*', 'usuarios.nombre_completo')
+            ->get();
+
+        return view('caja.conciliacion', compact('caja', 'totales', 'pagos', 'historial'));
+    }
+
+    public function guardarConciliacion(Request $request)
+    {
+        $request->validate([
+            'confirmado_tarjeta' => 'required|numeric|min:0',
+            'confirmado_transferencia' => 'required|numeric|min:0',
+            'observaciones' => 'nullable|string|max:500',
+        ]);
+
+        $caja = Caja::where('estado', 'ABIERTA')->first();
+
+        if (!$caja) {
+            return redirect()->route('caja.index')->with('error', 'No existe una caja abierta.');
+        }
+
+        $t = $this->totalesBanco($caja->id_caja);
+        $dif = ($request->confirmado_tarjeta - $t['TARJETA'])
+             + ($request->confirmado_transferencia - $t['TRANSFERENCIA']);
+
+        DB::table('conciliaciones_bancarias')->insert([
+            'id_caja' => $caja->id_caja,
+            'id_usuario' => auth()->id(),
+            'esperado_tarjeta' => $t['TARJETA'],
+            'confirmado_tarjeta' => $request->confirmado_tarjeta,
+            'esperado_transferencia' => $t['TRANSFERENCIA'],
+            'confirmado_transferencia' => $request->confirmado_transferencia,
+            'diferencia_total' => $dif,
+            'observaciones' => $request->observaciones,
+            'creado_en' => now(),
+        ]);
+
+        return redirect()->route('caja.conciliacion')->with(
+            abs($dif) < 0.005 ? 'success' : 'error',
+            abs($dif) < 0.005
+                ? 'Conciliación bancaria cuadrada.'
+                : 'Conciliación guardada con diferencia de C$ ' . number_format($dif, 2) . '.'
+        );
+    }
+
+    /**
+     * Efectivo físico del turno, expresado en C$. La gaveta guarda
+     * córdobas Y dólares: una venta pagada en dólares es dinero que
+     * queda físicamente en la gaveta, así que cuenta igual que una en
+     * efectivo (su monto en movimientos_caja ya está en C$, al tipo de
+     * cambio de la venta, neto del vuelto). Tarjeta y transferencia no
+     * pasan por la gaveta.
+     */
+    private function resumenEfectivo($caja): array
+    {
+        $fisico = ['EFECTIVO', 'DOLARES'];
+
+        $base = fn() => DB::table('movimientos_caja')
+            ->where('id_caja', $caja->id_caja)
+            ->whereIn('forma_pago', $fisico);
+
+        $ventas = $base()->where('tipo_movimiento', 'INGRESO')->whereNotNull('id_venta')->where('forma_pago', 'EFECTIVO')->sum('monto');
+        $ventasDolares = $base()->where('tipo_movimiento', 'INGRESO')->whereNotNull('id_venta')->where('forma_pago', 'DOLARES')->sum('monto');
+        $ingresos = $base()->where('tipo_movimiento', 'INGRESO')->whereNull('id_venta')->sum('monto');
+        $egresos = $base()->where('tipo_movimiento', 'EGRESO')->sum('monto');
+
+        return [
+            'ventas' => $ventas,
+            'ventasDolares' => $ventasDolares,
+            'ingresos' => $ingresos,
+            'egresos' => $egresos,
+            'saldoEsperado' => $caja->saldo_inicial + $ventas + $ventasDolares + $ingresos - $egresos,
+        ];
+    }
+
+    /**
+     * Estado de la conciliación bancaria para poder cerrar: si hubo
+     * pagos al banco, debe existir una conciliación guardada, cuadrada
+     * y hecha sobre los totales actuales (si entró otro pago después,
+     * hay que volver a conciliar).
+     */
+    private function estadoConciliacion($caja): array
+    {
+        $t = $this->totalesBanco($caja->id_caja);
+
+        if ($t['count'] == 0 && abs($t['TARJETA']) < 0.005 && abs($t['TRANSFERENCIA']) < 0.005) {
+            return ['ok' => true, 'motivo' => null, 'requerida' => false];
+        }
+
+        $c = DB::table('conciliaciones_bancarias')
+            ->where('id_caja', $caja->id_caja)
+            ->orderByDesc('id_conciliacion')
+            ->first();
+
+        if (!$c) {
+            return ['ok' => false, 'motivo' => 'Falta hacer la conciliación bancaria.', 'requerida' => true];
+        }
+        if (abs($c->esperado_tarjeta - $t['TARJETA']) > 0.005 || abs($c->esperado_transferencia - $t['TRANSFERENCIA']) > 0.005) {
+            return ['ok' => false, 'motivo' => 'Hubo pagos al banco después de la última conciliación; vuelve a conciliar.', 'requerida' => true];
+        }
+        if (abs($c->diferencia_total) >= 0.005) {
+            return ['ok' => false, 'motivo' => 'La conciliación bancaria tiene diferencia; corrígela hasta que cuadre.', 'requerida' => true];
+        }
+
+        return ['ok' => true, 'motivo' => null, 'requerida' => true];
+    }
+
+    /** Efectivo contado en C$ = córdobas + dólares * tipo de cambio. */
+    private function contadoTotal(Request $request, $caja): float
+    {
+        return round((float) $request->saldo_contado + (float) $request->dolares_contados * (float) $caja->tipo_cambio, 2);
+    }
+
     public function arqueo()
     {
         $caja = Caja::where('estado','ABIERTA')->first();
 
         if(!$caja){
-
-            return redirect()
-                ->route('caja.index')
-                ->with('error','No existe una caja abierta.');
-
+            return redirect()->route('caja.index')->with('error','No existe una caja abierta.');
         }
 
-            // Solo ventas pagadas en EFECTIVO: las pagadas con tarjeta,
-            // transferencia o dólares nunca estuvieron físicamente en la
-            // gaveta, así que no deben sumarse al efectivo esperado
-            // (antes se sumaban todas, sin importar el medio de pago, y
-            // el conteo físico nunca cuadraba).
-            $ventas = DB::table('movimientos_caja')
-                ->where('id_caja', $caja->id_caja)
-                ->where('tipo_movimiento', 'INGRESO')
-                ->where('forma_pago', 'EFECTIVO')
-                ->whereNotNull('id_venta')
-                ->sum('monto');
-
-            $ingresos = DB::table('movimientos_caja')
-                ->where('id_caja', $caja->id_caja)
-                ->where('tipo_movimiento', 'INGRESO')
-                ->whereNull('id_venta') // solo ingresos manuales
-                ->where('forma_pago', 'EFECTIVO')
-                ->sum('monto');
-
-            $egresos = DB::table('movimientos_caja')
-                ->where('id_caja', $caja->id_caja)
-                ->where('tipo_movimiento', 'EGRESO')
-                ->where('forma_pago', 'EFECTIVO')
-                ->sum('monto');
-
-            $saldoEsperado =
-                $caja->saldo_inicial +
-                $ventas +
-                $ingresos -
-                $egresos;
-
-            return view('caja.arqueo', compact(
-                'caja',
-                'ventas',
-                'ingresos',
-                'egresos',
-                'saldoEsperado'
-            ));
+        return view('caja.arqueo', array_merge(['caja' => $caja], $this->resumenEfectivo($caja)));
     }
 
     public function guardarArqueo(Request $request)
     {
         $request->validate([
-            'saldo_contado' => 'required|numeric|min:0'
+            'saldo_contado' => 'required|numeric|min:0',
+            'dolares_contados' => 'nullable|numeric|min:0',
         ]);
 
         $caja = Caja::where('estado', 'ABIERTA')->first();
 
         if (!$caja) {
-            return redirect()
-                ->route('caja.index')
-                ->with('error', 'No existe una caja abierta.');
+            return redirect()->route('caja.index')->with('error', 'No existe una caja abierta.');
         }
 
-        // Ventas del día pagadas en EFECTIVO únicamente (ver nota en
-        // arqueo()): las de tarjeta/transferencia/dólares no cuentan
-        // para el efectivo físico esperado.
-        $ventas = DB::table('movimientos_caja')
-            ->where('id_caja', $caja->id_caja)
-            ->where('tipo_movimiento', 'INGRESO')
-            ->where('forma_pago', 'EFECTIVO')
-            ->whereNotNull('id_venta')
-            ->sum('monto');
+        $r = $this->resumenEfectivo($caja);
+        $contado = $this->contadoTotal($request, $caja);
+        $diferencia = $contado - $r['saldoEsperado'];
 
-        // Ingresos manuales
-        $ingresos = DB::table('movimientos_caja')
-            ->where('id_caja', $caja->id_caja)
-            ->where('tipo_movimiento', 'INGRESO')
-            ->whereNull('id_venta')
-            ->where('forma_pago', 'EFECTIVO')
-            ->sum('monto');
-
-        // Egresos
-        $egresos = DB::table('movimientos_caja')
-            ->where('id_caja', $caja->id_caja)
-            ->where('tipo_movimiento', 'EGRESO')
-            ->where('forma_pago', 'EFECTIVO')
-            ->sum('monto');
-
-        // Saldo esperado
-        $saldoEsperado =
-            $caja->saldo_inicial +
-            $ventas +
-            $ingresos -
-            $egresos;
-
-        $diferencia = $request->saldo_contado - $saldoEsperado;
-
-        return view('caja.resultado_arqueo', [
+        return view('caja.resultado_arqueo', array_merge($r, [
             'caja' => $caja,
-            'contado' => $request->saldo_contado,
-            'ventas' => $ventas,
-            'ingresos' => $ingresos,
-            'egresos' => $egresos,
-            'saldoEsperado' => $saldoEsperado,
-            'diferencia' => $diferencia
-        ]);
+            'contado' => $contado,
+            'contadoCordobas' => (float) $request->saldo_contado,
+            'dolaresContados' => (float) $request->dolares_contados,
+            'diferencia' => $diferencia,
+            'conciliacion' => $this->estadoConciliacion($caja),
+        ]));
     }
+
     public function cerrarCaja(Request $request)
     {
         $request->validate([
-            'saldo_contado' => 'required|numeric|min:0'
+            'saldo_contado' => 'required|numeric|min:0',
+            'dolares_contados' => 'nullable|numeric|min:0',
         ]);
 
         $caja = Caja::where('estado', 'ABIERTA')->first();
 
         if (!$caja) {
-
-            return redirect()
-                ->route('caja.index')
-                ->with('error','No existe una caja abierta.');
-
+            return redirect()->route('caja.index')->with('error','No existe una caja abierta.');
         }
 
-        // Total de ventas del día pagadas en EFECTIVO únicamente (ver
-        // nota en arqueo()): las de tarjeta/transferencia/dólares no
-        // cuentan para el efectivo físico esperado.
-        $ventas = DB::table('movimientos_caja')
-            ->where('id_caja', $caja->id_caja)
-            ->where('tipo_movimiento', 'INGRESO')
-            ->where('forma_pago', 'EFECTIVO')
-            ->whereNotNull('id_venta')
-            ->sum('monto');
+        $r = $this->resumenEfectivo($caja);
+        $contado = $this->contadoTotal($request, $caja);
+        $diferencia = $contado - $r['saldoEsperado'];
 
-        // Ingresos manuales
-        $ingresos = DB::table('movimientos_caja')
-            ->where('id_caja', $caja->id_caja)
-            ->where('tipo_movimiento', 'INGRESO')
-            ->whereNull('id_venta')
-            ->where('forma_pago', 'EFECTIVO')
-            ->sum('monto');
+        // Para cerrar deben cuadrar AMBOS arqueos: efectivo físico
+        // (córdobas + dólares) y conciliación bancaria.
+        if (abs($diferencia) >= 0.01) {
+            return redirect()->route('caja.arqueo')->with('error',
+                'No se puede cerrar: el arqueo de efectivo no cuadra (diferencia C$ ' . number_format($diferencia, 2) . ').');
+        }
 
-        // Egresos
-        $egresos = DB::table('movimientos_caja')
-            ->where('id_caja', $caja->id_caja)
-            ->where('tipo_movimiento', 'EGRESO')
-            ->where('forma_pago', 'EFECTIVO')
-            ->sum('monto');
-
-        // Saldo esperado
-        $saldoEsperado =
-            $caja->saldo_inicial +
-            $ventas +
-            $ingresos -
-            $egresos;
-
-        // Diferencia
-        $diferencia = $request->saldo_contado - $saldoEsperado;
+        $conc = $this->estadoConciliacion($caja);
+        if (!$conc['ok']) {
+            return redirect()->route('caja.conciliacion')->with('error', 'No se puede cerrar: ' . $conc['motivo']);
+        }
 
         $caja->update([
-
             'fecha_cierre' => now()->toDateString(),
-
             'hora_cierre' => now()->format('H:i:s'),
-
             'id_usuario_cierre' => auth()->user()->id_usuario,
-
-            'saldo_final' => $request->saldo_contado,
-
-            'saldo_contado' => $request->saldo_contado,
-
-            'total_ingresos' => $ingresos,
-
-            'total_egresos' => $egresos,
-
+            'saldo_final' => $contado,
+            'saldo_contado' => $contado,
+            'total_ingresos' => $r['ventas'] + $r['ventasDolares'] + $r['ingresos'],
+            'total_egresos' => $r['egresos'],
             'diferencia' => $diferencia,
-
             'estado' => 'CERRADA'
-
         ]);
 
-        return redirect()
-                ->route('caja.index')
-                ->with('success','Caja cerrada correctamente.');
-
+        return redirect()->route('caja.index')->with('success','Caja cerrada correctamente.');
     }
 
 }

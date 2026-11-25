@@ -132,6 +132,12 @@ Route::resource('categorias', CategoriaController::class)
     Route::post('/caja/arqueo', [CajaController::class,'guardarArqueo'])
         ->name('caja.arqueo.guardar');
 
+    Route::get('/caja/conciliacion', [CajaController::class, 'conciliacion'])
+        ->name('caja.conciliacion');
+
+    Route::post('/caja/conciliacion', [CajaController::class, 'guardarConciliacion'])
+        ->name('caja.conciliacion.guardar');
+
     Route::post('/caja/cerrar', [CajaController::class, 'cerrarCaja'])
         ->name('caja.cerrar');
 
@@ -161,6 +167,11 @@ Route::middleware(['auth', 'role:ADMINISTRADOR'])->prefix('reportes')->group(fun
 
     Route::get('/ventas', [ReporteController::class, 'ventas'])->name('reportes.ventas');
     Route::get('/ventas/excel', [ReporteController::class, 'ventasExcel'])->name('reportes.ventas.excel');
+
+    Route::get('/cierres', [ReporteController::class, 'cierres'])->name('reportes.cierres');
+    Route::get('/cierres/excel', [ReporteController::class, 'cierresExcel'])->name('reportes.cierres.excel');
+    Route::get('/cierres/{id}', [ReporteController::class, 'cierreDetalle'])->whereNumber('id')->name('reportes.cierres.show');
+    Route::get('/cierres/{id}/excel', [ReporteController::class, 'cierreDetalleExcel'])->whereNumber('id')->name('reportes.cierres.show.excel');
 
     Route::get('/kardex', [ReporteController::class, 'kardex'])->name('reportes.kardex');
     Route::get('/kardex/excel', [ReporteController::class, 'kardexExcel'])->name('reportes.kardex.excel');

@@ -182,7 +182,7 @@ class ReporteService
         $efectivoCaja = null;
         if ($cajaAbierta) {
             $neto = DB::table('movimientos_caja')
-                ->where('id_caja', $cajaAbierta->id_caja)->where('forma_pago', 'EFECTIVO')
+                ->where('id_caja', $cajaAbierta->id_caja)->whereIn('forma_pago', ['EFECTIVO', 'DOLARES'])
                 ->selectRaw("COALESCE(SUM(CASE WHEN tipo_movimiento='INGRESO' THEN monto ELSE -monto END),0) as n")->value('n');
             $efectivoCaja = (float) $cajaAbierta->saldo_inicial + (float) $neto;
         }
@@ -425,6 +425,117 @@ class ReporteService
         $r->saldo_final = (int) $r->stock_actual - (int) $r->despues;
         $r->saldo_inicial = $r->saldo_final - $r->entradas + $r->salidas;
         return $r;
+    }
+
+    // ------------------------------------------------------------------
+    // Cierres de caja (turnos)
+    // ------------------------------------------------------------------
+    private function sumaCaja(string $tipo, bool $conVenta, ?string $forma): string
+    {
+        $c = "(SELECT COALESCE(SUM(m.monto),0) FROM movimientos_caja m WHERE m.id_caja = c.id_caja AND m.tipo_movimiento = '{$tipo}'";
+        $c .= $conVenta ? ' AND m.id_venta IS NOT NULL' : ' AND m.id_venta IS NULL';
+        if ($forma) {
+            $c .= " AND m.forma_pago = '{$forma}'";
+        }
+        return $c . ')';
+    }
+
+    private function baseTurnos()
+    {
+        return DB::table('caja as c')
+            ->leftJoin('usuarios as ua', 'ua.id_usuario', '=', 'c.id_usuario_apertura')
+            ->leftJoin('usuarios as uc', 'uc.id_usuario', '=', 'c.id_usuario_cierre')
+            ->selectRaw(
+                'c.id_caja, c.fecha_apertura, c.hora_apertura, c.fecha_cierre, c.hora_cierre, c.estado, c.saldo_inicial, c.saldo_contado, c.diferencia, c.observaciones, '
+                . 'ua.nombre_completo as abre, uc.nombre_completo as cierra, '
+                . $this->sumaCaja('INGRESO', true, 'EFECTIVO') . ' as v_efectivo, '
+                . $this->sumaCaja('INGRESO', true, 'TARJETA') . ' as v_tarjeta, '
+                . $this->sumaCaja('INGRESO', true, 'TRANSFERENCIA') . ' as v_transferencia, '
+                . $this->sumaCaja('INGRESO', true, 'DOLARES') . ' as v_dolares, '
+                . $this->sumaCaja('INGRESO', false, 'EFECTIVO') . ' as ing_efectivo, '
+                . $this->sumaCaja('EGRESO', false, 'EFECTIVO') . ' as egr_efectivo, '
+                . "(SELECT COALESCE(SUM(m.monto),0) FROM movimientos_caja m WHERE m.id_caja = c.id_caja AND m.tipo_movimiento = 'EGRESO' AND (m.forma_pago IS NULL OR m.forma_pago <> 'EFECTIVO')) as egr_otros"
+            );
+    }
+
+    /** Calcula esperado, resultado y alertas de un turno. */
+    private function procesarTurno($t)
+    {
+        foreach (['saldo_inicial', 'v_efectivo', 'v_tarjeta', 'v_transferencia', 'v_dolares', 'ing_efectivo', 'egr_efectivo', 'egr_otros'] as $k) {
+            $t->{$k} = (float) $t->{$k};
+        }
+        $t->abierta = $t->estado === 'ABIERTA';
+        $t->apertura = Carbon::parse($t->fecha_apertura . ' ' . ($t->hora_apertura ?: '00:00:00'));
+        $t->cierre = ($t->fecha_cierre ? Carbon::parse($t->fecha_cierre . ' ' . ($t->hora_cierre ?: '00:00:00')) : null);
+
+        // Efectivo que debería haber según los movimientos
+        $porMovimientos = $t->saldo_inicial + $t->v_efectivo + $t->ing_efectivo - $t->egr_efectivo;
+
+        if ($t->abierta) {
+            $t->esperado = $porMovimientos;
+            $t->contado = null;
+            $t->dif = null;
+            $t->resultado = 'Abierta';
+            $t->desfase = false;
+        } else {
+            $t->contado = (float) $t->saldo_contado;
+            $t->dif = (float) $t->diferencia;
+            // Lo que el sistema esperaba al cerrar el turno
+            $t->esperado = $t->contado - $t->dif;
+            $t->resultado = abs($t->dif) < 0.005 ? 'Cuadra' : ($t->dif > 0 ? 'Sobrante' : 'Faltante');
+            // Si hubo movimientos registrados después del cierre, el desglose ya no suma el mismo esperado
+            $t->desfase = abs($porMovimientos - $t->esperado) > 0.01;
+        }
+        $t->ventas_total = $t->v_efectivo + $t->v_tarjeta + $t->v_transferencia + $t->v_dolares;
+        return $t;
+    }
+
+    /** Turnos de caja cuya apertura cae en el rango. */
+    public function cierres(Carbon $desde, Carbon $hasta, ?string $estado, bool $soloDiferencias)
+    {
+        $q = $this->baseTurnos()->whereBetween('c.fecha_apertura', [$desde->toDateString(), $hasta->toDateString()]);
+
+        if ($estado === 'CERRADA' || $estado === 'ABIERTA') {
+            $q->where('c.estado', $estado);
+        }
+        if ($soloDiferencias) {
+            $q->where('c.estado', 'CERRADA')->whereRaw('ABS(c.diferencia) >= 0.005');
+        }
+
+        return $q->orderByDesc('c.fecha_apertura')->orderByDesc('c.hora_apertura')->get()
+            ->map(fn ($t) => $this->procesarTurno($t));
+    }
+
+    public function resumenCierres($turnos): array
+    {
+        $cerrados = $turnos->where('abierta', false);
+        return [
+            'turnos' => $turnos->count(),
+            'abiertos' => $turnos->where('abierta', true)->count(),
+            'cuadran' => $cerrados->filter(fn ($t) => $t->resultado === 'Cuadra')->count(),
+            'sobrantes' => (float) $cerrados->where('dif', '>', 0)->sum('dif'),
+            'faltantes' => (float) abs($cerrados->where('dif', '<', 0)->sum('dif')),
+            'neto' => (float) $cerrados->sum('dif'),
+            'ventas' => (float) $turnos->sum('ventas_total'),
+            'cerrados' => $cerrados->count(),
+        ];
+    }
+
+    /** Un turno con todos sus movimientos (de dónde vino y a dónde se fue el dinero). */
+    public function cierreDetalle(int $idCaja): ?array
+    {
+        $t = $this->baseTurnos()->where('c.id_caja', $idCaja)->first();
+        if (!$t) {
+            return null;
+        }
+        $movs = DB::table('movimientos_caja as m')
+            ->leftJoin('usuarios as u', 'u.id_usuario', '=', 'm.id_usuario')
+            ->leftJoin('ventas as v', 'v.id_venta', '=', 'm.id_venta')
+            ->where('m.id_caja', $idCaja)
+            ->select('m.creado_en', 'm.tipo_movimiento', 'm.forma_pago', 'm.monto', 'm.descripcion', 'm.motivo', 'm.id_venta', 'v.numero_ticket', 'u.nombre_completo as usuario')
+            ->orderBy('m.creado_en')->orderBy('m.id_movimiento')->get();
+
+        return ['turno' => $this->procesarTurno($t), 'movimientos' => $movs];
     }
 
     // ------------------------------------------------------------------

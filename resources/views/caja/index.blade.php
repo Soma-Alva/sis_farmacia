@@ -116,7 +116,7 @@
     /* ---------- Tarjetas de resumen ---------- */
     .gf-caja-stats{
         display:grid;
-        grid-template-columns:repeat(4, 1fr);
+        grid-template-columns:repeat(auto-fit, minmax(215px, 1fr));
         gap:16px;
         margin-bottom:18px;
     }
@@ -545,6 +545,32 @@
             </div>
         </div>
 
+        <div class="gf-caja-stat">
+            <div class="gf-caja-stat-top">
+                <div>
+                    <div class="gf-caja-stat-label">Pagos al banco</div>
+                    <div class="gf-caja-stat-valor" style="color:#2F5D8A;">C$ {{ number_format($bancoTarjeta + $bancoTransferencia, 2) }}</div>
+                </div>
+                <div class="gf-caja-stat-icono" style="background:#E8F0FB; color:#2F5D8A;">
+                    <i class="bi bi-bank"></i>
+                </div>
+            </div>
+            <div class="gf-caja-stat-sub" style="color:#2F5D8A;">Tarjeta C$ {{ number_format($bancoTarjeta, 2) }} · Transf. C$ {{ number_format($bancoTransferencia, 2) }}</div>
+            <div class="gf-caja-stat-divider"></div>
+            <div class="gf-caja-stat-foot">
+                <span>
+                    @if($ultimaConciliacion)
+                        {{ abs($ultimaConciliacion->diferencia_total) < 0.005 ? 'Conciliado' : 'Conciliado con diferencia' }}
+                    @else
+                        {{ $bancoCount }} {{ $bancoCount == 1 ? 'pago' : 'pagos' }} sin conciliar
+                    @endif
+                </span>
+                <a href="{{ route('caja.conciliacion') }}" class="gf-caja-ver-desglose" style="text-decoration:none;">
+                    <i class="bi bi-eye"></i> Conciliar
+                </a>
+            </div>
+        </div>
+
         <div class="gf-caja-stat gf-caja-stat-dark">
             <div class="gf-caja-stat-top">
                 <div>
@@ -555,7 +581,7 @@
                     <i class="bi bi-wallet2"></i>
                 </div>
             </div>
-            <div class="gf-caja-stat-sub">Solo efectivo: lo que debería haber en la gaveta</div>
+            <div class="gf-caja-stat-sub">Córdobas y dólares: lo que debería haber en la gaveta</div>
             <div class="gf-caja-stat-divider"></div>
             <div class="gf-caja-stat-foot">
                 <span>Equivalente USD:</span>
@@ -636,6 +662,9 @@
             </a>
             <a href="{{ route('caja.arqueo') }}" class="gf-pill gf-pill-oscuro">
                 <i class="bi bi-calculator"></i> Arqueo / Conteo C$
+            </a>
+            <a href="{{ route('caja.conciliacion') }}" class="gf-pill gf-pill-oscuro" style="background:#2F5D8A;">
+                <i class="bi bi-bank"></i> Conciliación bancaria
             </a>
             <a href="{{ route('caja.arqueo') }}" class="gf-pill gf-pill-ambar">
                 <i class="bi bi-lock"></i> Cerrar Turno
