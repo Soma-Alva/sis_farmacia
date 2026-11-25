@@ -60,10 +60,6 @@
 
 <div class="p-4">
 
-    @if(session('error'))
-        <div class="alert alert-danger">{{ session('error') }}</div>
-    @endif
-
     <form action="{{ route('caja.abrir') }}" method="POST">
         @csrf
 

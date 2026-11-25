@@ -403,6 +403,83 @@
            compras, clientes): el fundido suave es la única señal de
            que se está recargando, sin spinners ni saltos bruscos. */
         #gf-resultados-busqueda{ transition:opacity .15s ease; }
+
+        /* ============================================================
+           Mensajes (alerts) con la paleta de la app
+           1) .gf-flash: mensajes de sesión (success / error / warning / info)
+              que muestra este layout una sola vez por página.
+           2) .alert: restyling global de los avisos de Bootstrap que ya
+              usan los formularios (errores de validación, banners), para
+              que todos se vean igual sin tocar cada vista.
+           ============================================================ */
+        .gf-flash{
+            --fl-color:#2F7A4B; --fl-fondo:#E8F3EC; --fl-borde:#BFDCC9;
+            position:relative; overflow:hidden;
+            display:flex; align-items:flex-start; gap:14px;
+            background:linear-gradient(135deg, #fff 0%, var(--fl-fondo) 100%);
+            border:1px solid var(--fl-borde); border-left:6px solid var(--fl-color);
+            border-radius:16px; padding:14px 16px 14px 14px; margin-bottom:16px;
+            box-shadow:0 6px 18px rgba(47,79,62,0.10);
+            animation:gf-flash-in .35s ease both;
+            transition:opacity .3s ease, transform .3s ease, max-height .35s ease, margin .35s ease, padding .35s ease;
+            max-height:400px;
+        }
+        .gf-flash-error  { --fl-color:#B4452F; --fl-fondo:#FBEAE6; --fl-borde:#EFC3B9; }
+        .gf-flash-warning{ --fl-color:#B7791F; --fl-fondo:#FBF3DE; --fl-borde:#EBD7A3; }
+        .gf-flash-info   { --fl-color:#3F7D8C; --fl-fondo:#E6F1F4; --fl-borde:#BAD6DD; }
+
+        .gf-flash-icono{
+            flex:0 0 auto; width:38px; height:38px; border-radius:12px;
+            display:flex; align-items:center; justify-content:center;
+            background:var(--fl-color); color:#fff; font-size:20px;
+            box-shadow:0 4px 10px rgba(0,0,0,0.12);
+        }
+        .gf-flash-cuerpo{ flex:1 1 auto; min-width:0; }
+        .gf-flash-titulo{
+            font-family:'Fraunces', serif; font-weight:700; font-size:15px;
+            color:var(--fl-color); line-height:1.2; margin-bottom:2px;
+        }
+        .gf-flash-texto{ font-size:13.5px; color:var(--carbon); line-height:1.45; word-break:break-word; }
+        .gf-flash-cerrar{
+            flex:0 0 auto; border:none; background:transparent; color:rgba(36,36,32,0.45);
+            width:28px; height:28px; border-radius:8px; font-size:13px; cursor:pointer;
+        }
+        .gf-flash-cerrar:hover{ background:rgba(36,36,32,0.08); color:var(--carbon); }
+        .gf-flash-barra{
+            position:absolute; left:0; bottom:0; height:3px; width:100%;
+            background:var(--fl-color); opacity:.55; transform-origin:left;
+        }
+        .gf-flash.cerrando{ opacity:0; transform:translateY(-8px); max-height:0; margin-bottom:0; padding-top:0; padding-bottom:0; border-width:0; }
+        @keyframes gf-flash-in{ from{ opacity:0; transform:translateY(-10px);} to{ opacity:1; transform:none;} }
+        @keyframes gf-flash-barra{ from{ transform:scaleX(1);} to{ transform:scaleX(0);} }
+
+        /* Avisos de Bootstrap (formularios, banners en vistas) */
+        .alert{
+            --al-color:#1F5E3A; --al-fondo:#E8F3EC; --al-borde:#2F7A4B;
+            --al-icono:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='11' fill='%232F7A4B'/%3E%3Cpath d='M7 12.5l3.2 3.2L17 9' stroke='white' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            position:relative; border:1px solid transparent; border-left:5px solid var(--al-borde);
+            border-radius:14px; background:var(--al-fondo); color:var(--al-color);
+            padding:13px 18px 13px 54px; font-size:13.5px; line-height:1.5;
+            box-shadow:0 3px 12px rgba(47,79,62,0.08);
+        }
+        .alert::before{
+            content:""; position:absolute; left:17px; top:13px; width:24px; height:24px;
+            background:var(--al-icono) center/contain no-repeat;
+        }
+        .alert ul{ margin:0; padding-left:18px; }
+        .alert-danger{
+            --al-color:#8E3322; --al-fondo:#FBEAE6; --al-borde:#B4452F;
+            --al-icono:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='11' fill='%23B4452F'/%3E%3Cpath d='M12 6.5v6.5' stroke='white' stroke-width='2.4' stroke-linecap='round'/%3E%3Ccircle cx='12' cy='17' r='1.5' fill='white'/%3E%3C/svg%3E");
+        }
+        .alert-warning{
+            --al-color:#7A5614; --al-fondo:#FBF3DE; --al-borde:#C98A3B;
+            --al-icono:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='11' fill='%23C98A3B'/%3E%3Cpath d='M12 6.5v6.5' stroke='white' stroke-width='2.4' stroke-linecap='round'/%3E%3Ccircle cx='12' cy='17' r='1.5' fill='white'/%3E%3C/svg%3E");
+        }
+        .alert-info{
+            --al-color:#2D5F6B; --al-fondo:#E6F1F4; --al-borde:#3F7D8C;
+            --al-icono:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='11' fill='%233F7D8C'/%3E%3Ccircle cx='12' cy='7.3' r='1.5' fill='white'/%3E%3Cpath d='M12 11v6.5' stroke='white' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E");
+        }
+        .alert .btn-close{ top:50%; transform:translateY(-50%); padding:14px; }
     </style>
 </head>
 
@@ -575,11 +652,31 @@ document.addEventListener('DOMContentLoaded', function () {
                 </div>
             @endunless
 
-            @if(session('success'))
-                <div class="alert alert-success">
-                    {{ session('success') }}
-                </div>
-            @endif
+            {{-- Mensajes de sesión: los muestra SOLO el layout (las vistas no deben repetirlos) --}}
+            @php
+                $gfFlash = [
+                    'success' => ['¡Listo!', 'bi-check-lg'],
+                    'error'   => ['Algo salió mal', 'bi-x-lg'],
+                    'warning' => ['Atención', 'bi-exclamation-lg'],
+                    'info'    => ['Información', 'bi-info-lg'],
+                ];
+            @endphp
+            @foreach($gfFlash as $gfTipo => [$gfTitulo, $gfIcono])
+                @if(session($gfTipo))
+                    <div class="gf-flash gf-flash-{{ $gfTipo }}" role="alert"
+                         @if($gfTipo === 'success') data-autocierre="6000" @endif>
+                        <div class="gf-flash-icono"><i class="bi {{ $gfIcono }}"></i></div>
+                        <div class="gf-flash-cuerpo">
+                            <div class="gf-flash-titulo">{{ $gfTitulo }}</div>
+                            <div class="gf-flash-texto">{{ session($gfTipo) }}</div>
+                        </div>
+                        <button type="button" class="gf-flash-cerrar" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
+                        @if($gfTipo === 'success')
+                            <div class="gf-flash-barra" style="animation:gf-flash-barra 6s linear forwards;"></div>
+                        @endif
+                    </div>
+                @endif
+            @endforeach
 
             @yield('content')
 
@@ -591,6 +688,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
 <!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    // Mensajes de sesión: se cierran con la X; los de éxito se ocultan solos.
+    (function () {
+        function cerrar(el) {
+            if (!el || el.classList.contains('cerrando')) { return; }
+            el.classList.add('cerrando');
+            setTimeout(function () { el.remove(); }, 400);
+        }
+        document.querySelectorAll('.gf-flash').forEach(function (el) {
+            var x = el.querySelector('.gf-flash-cerrar');
+            if (x) { x.addEventListener('click', function () { cerrar(el); }); }
+            var ms = parseInt(el.getAttribute('data-autocierre') || '0', 10);
+            if (ms > 0) { setTimeout(function () { cerrar(el); }, ms); }
+        });
+    })();
+</script>
 
 <script>
     // Buscador del topbar (productos / compras / clientes): busca en

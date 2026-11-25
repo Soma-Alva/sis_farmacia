@@ -9,12 +9,6 @@
     </a>
 </div>
 
-@if(session('success'))
-    <div class="alert alert-success">
-        {{ session('success') }}
-    </div>
-@endif
-
 {{-- El buscador del topbar reemplaza este bloque entero por AJAX cada
      vez que se escribe, para filtrar contra toda la tabla y no solo
      la página visible. Por eso vive en un parcial aparte. --}}

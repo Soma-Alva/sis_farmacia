@@ -32,12 +32,6 @@
 
 <p class="gf-page-subtitle mb-3">Total de ventas encontradas: <strong>{{ $ventas->total() }}</strong></p>
 
-@if(session('success'))
-    <div class="alert alert-success">
-        {{ session('success') }}
-    </div>
-@endif
-
 <div class="gf-card">
     <div class="p-3">
         <div class="table-responsive">

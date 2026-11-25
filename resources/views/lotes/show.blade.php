@@ -7,11 +7,8 @@
     <a href="{{ route('lotes.index') }}" class="gf-btn-soft gf-btn-apagado">Volver</a>
 </div>
 
-@if(session('success'))
-    <div class="alert alert-success">{{ session('success') }}</div>
-@endif
-@if(session('error') || $errors->any())
-    <div class="alert alert-danger">{{ session('error') ?? $errors->first() }}</div>
+@if($errors->any())
+    <div class="alert alert-danger">{{ $errors->first() }}</div>
 @endif
 
 @php
