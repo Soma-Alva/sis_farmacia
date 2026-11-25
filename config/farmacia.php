@@ -6,9 +6,9 @@ return [
 
     'telefono' => '58600606',
 
-    'ruc' => '20600606060',
+    'ruc' => '2891808001001F',
 
-    'direccion' => 'León - Iglesia Zaragoza 3 C.Sur',
+    'direccion' => 'León - Iglesia Zaragoza 3C. al Sur',
 
     // Ancho del rollo de papel de la impresora térmica: '80mm' o '58mm'.
     // La AON PR-250 es un modelo de punto de venta de la misma familia
