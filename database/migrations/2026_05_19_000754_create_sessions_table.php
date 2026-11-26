@@ -11,6 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // La migración base de Laravel (create_users_table) ya crea
+        // 'sessions'; sin este chequeo, en una base nueva el migrate
+        // falla con "Table 'sessions' already exists".
+        if (Schema::hasTable('sessions')) {
+            return;
+        }
+
         Schema::create('sessions', function (Blueprint $table) {
             $table->string('id')->primary();
             $table->foreignId('user_id')->nullable()->index();
