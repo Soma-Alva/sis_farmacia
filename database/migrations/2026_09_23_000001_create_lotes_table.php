@@ -10,8 +10,8 @@ return new class extends Migration
     {
         Schema::create('lotes', function (Blueprint $table) {
             $table->increments('id_lote');
-            $table->integer('id_producto');
-            $table->integer('id_compra')->nullable();
+            $table->unsignedInteger('id_producto');
+            $table->unsignedInteger('id_compra')->nullable();
             $table->string('numero_lote', 100)->nullable();
             $table->date('fecha_vencimiento')->nullable();
             $table->integer('cantidad_inicial');
