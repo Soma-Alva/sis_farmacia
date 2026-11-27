@@ -72,7 +72,7 @@
         </div>
 
         <div class="mb-3">
-            <label>Concentración</label>
+            <label>Concentración <small class="text-muted">(opcional)</small></label>
 
             <input type="text"
                 name="concentracion"
@@ -81,7 +81,7 @@
         </div>
 
         <div class="mb-3">
-            <label>Presentación</label>
+            <label>Presentación <small class="text-muted">(opcional)</small></label>
 
             <input type="text"
                 name="presentacion"
@@ -127,8 +127,8 @@
         </div>
 
         <div class="mb-3">
-            <label>Descripción</label>
-            <input type="text" name="descripcion" class="form-control" required>
+            <label>Descripción <small class="text-muted">(opcional)</small></label>
+            <input type="text" name="descripcion" class="form-control">
         </div>
 
         <button class="btn btn-success">Guardar</button>

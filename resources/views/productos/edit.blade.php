@@ -72,21 +72,21 @@
             </div>
 
             <div class="mb-3">
-                <label>Concentración</label>
+                <label>Concentración <small class="text-muted">(opcional)</small></label>
 
                 <input type="text"
                     name="concentracion"
                     class="form-control"
-                    value="{{ $producto->concentracion }}" required> 
+                    value="{{ $producto->concentracion }}"> 
             </div>
 
             <div class="mb-3">
-                <label>Presentación</label>
+                <label>Presentación <small class="text-muted">(opcional)</small></label>
 
                 <input type="text"
                     name="presentacion"
                     class="form-control"
-                    value="{{ $producto->presentacion }}" required>          
+                    value="{{ $producto->presentacion }}">          
             </div>
 
             <div class="mb-3">
@@ -139,11 +139,11 @@
             </div>
 
             <div class="mb-3">
-                <label>Descripción</label>
+                <label>Descripción <small class="text-muted">(opcional)</small></label>
                 <input type="text"
                     name="descripcion"
                     class="form-control"
-                    value="{{ $producto->descripcion }}" required>
+                    value="{{ $producto->descripcion }}">
             </div>
 
             <button class="btn btn-success">

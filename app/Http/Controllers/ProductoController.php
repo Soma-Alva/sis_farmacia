@@ -54,12 +54,12 @@ class ProductoController extends Controller
         'nombre' => 'required',
         'id_categoria' => 'required',
         'id_proveedor' => 'required',
-        'concentracion' => 'required',
-        'presentacion' => 'required',
+        'concentracion' => 'nullable|string|max:50',
+        'presentacion' => 'nullable|string|max:100',
         'precio_compra' => 'required|numeric',
         'precio_venta' => 'required|numeric', 
         'stock_minimo' => 'required|integer',
-        'descripcion' => 'required',
+        'descripcion' => 'nullable|string',
         ],[
             'codigo_barra.unique' => 'Este código de barras ya está registrado en otro producto.',
             'codigo_barra.required' => 'Debe ingresar un código de barras.'
@@ -102,12 +102,12 @@ class ProductoController extends Controller
         'nombre' => 'required',
         'id_categoria' => 'required',
         'id_proveedor' => 'required',
-        'concentracion' => 'required',
-        'presentacion' => 'required',
+        'concentracion' => 'nullable|string|max:50',
+        'presentacion' => 'nullable|string|max:100',
         'precio_compra' => 'required|numeric',
         'precio_venta' => 'required|numeric',
         'stock_minimo' => 'required|integer',
-        'descripcion' => 'required',
+        'descripcion' => 'nullable|string',
         ],[
             'codigo_barra.unique' => 'Este código de barras ya está registrado en otro producto.',
             'codigo_barra.required' => 'Debe ingresar un código de barras.'
