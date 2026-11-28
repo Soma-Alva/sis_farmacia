@@ -24,7 +24,7 @@ class VentaController extends Controller
                 ->with('error', 'Debe abrir una caja antes de realizar ventas.');
         }
 
-        $productos = Producto::where('activo', 1)->get();
+        $productos = Producto::with('presentaciones')->where('activo', 1)->get();
 
         // Para cada producto, adjuntamos el lote que se consumiría primero
         // bajo FEFO (el que vence más pronto), solo como vista previa en
@@ -102,6 +102,7 @@ class VentaController extends Controller
             'detalle_ventas.cantidad',
             'detalle_ventas.precio_unitario',
             'detalle_ventas.subtotal',
+            'detalle_ventas.presentacion',
             'lotes.numero_lote',
             'lotes.fecha_vencimiento'
         )
@@ -144,7 +145,8 @@ class VentaController extends Controller
                 'productos.codigo_barra',
                 'detalle_ventas.cantidad',
                 'detalle_ventas.precio_unitario',
-                'detalle_ventas.subtotal'
+                'detalle_ventas.subtotal',
+                'detalle_ventas.presentacion'
             )
             ->get();
 
@@ -434,11 +436,36 @@ class VentaController extends Controller
 
             foreach ($productos as $item) {
 
+                // Por defecto la línea es por unidad. Si trae
+                // id_presentacion (ej. "Caja x100"), las unidades y el
+                // precio se calculan AQUÍ desde la base de datos: el
+                // paquete descuenta sus unidades y se cobra a su precio
+                // fijo, sin confiar en lo que mande el navegador.
+                $unidadesVendidas = (int) $item['cantidad'];
+                $precioUnidad = $item['precio'];
+                $nombrePresentacion = null;
+
+                if (!empty($item['id_presentacion'])) {
+                    $pres = DB::table('producto_presentaciones')
+                        ->where('id_presentacion', $item['id_presentacion'])
+                        ->where('id_producto', $item['id'])
+                        ->where('activo', 1)
+                        ->first();
+
+                    if (!$pres) {
+                        throw new \Exception('La presentación seleccionada ya no está disponible.');
+                    }
+
+                    $unidadesVendidas = (int) $item['cantidad'] * (int) $pres->unidades;
+                    $precioUnidad = $pres->precio_venta / $pres->unidades;
+                    $nombrePresentacion = $pres->nombre;
+                }
+
                 // Descontar el stock usando FEFO: puede tomar de más
                 // de un lote si el primero que vence no alcanza solo.
                 $consumos = $this->consumirLotesFefo(
                     (int) $item['id'],
-                    (int) $item['cantidad']
+                    $unidadesVendidas
                 );
 
                 foreach ($consumos as $consumo) {
@@ -448,8 +475,9 @@ class VentaController extends Controller
                         'id_producto'     => $item['id'],
                         'id_lote'         => $consumo['id_lote'],
                         'cantidad'        => $consumo['cantidad'],
-                        'precio_unitario' => $item['precio'],
-                        'subtotal'        => $consumo['cantidad'] * $item['precio'],
+                        'precio_unitario' => round($precioUnidad, 4),
+                        'subtotal'        => round($consumo['cantidad'] * $precioUnidad, 4),
+                        'presentacion'    => $nombrePresentacion,
                     ]);
 
                     DB::table('movimientos_inventario')->insert([
@@ -467,7 +495,7 @@ class VentaController extends Controller
                 //  Sincronizar el caché de stock en productos
                 DB::table('productos')
                     ->where('id_producto', $item['id'])
-                    ->decrement('stock_actual', $item['cantidad']);
+                    ->decrement('stock_actual', $unidadesVendidas);
             }
 
             // Registrar movimiento de caja por la venta

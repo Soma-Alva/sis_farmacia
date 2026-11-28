@@ -27,6 +27,13 @@ class Producto extends Model
     'activo'
     ];
 
+    public function presentaciones()
+    {
+        return $this->hasMany(ProductoPresentacion::class, 'id_producto', 'id_producto')
+            ->where('activo', 1)
+            ->orderBy('unidades');
+    }
+
     public function categoria()
     {
         return $this->belongsTo(

@@ -55,7 +55,7 @@
                 <tbody>
                     @foreach($detalle as $item)
                     <tr>
-                        <td class="fw-semibold">{{ $item->nombre }}</td>
+                        <td class="fw-semibold">{{ $item->nombre }}@if($item->presentacion) <small class="text-muted">({{ $item->presentacion }})</small>@endif</td>
                         <td>{{ $item->cantidad }}</td>
                         <td>C$ {{ number_format($item->precio_unitario,2) }}</td>
                         <td>C$ {{ number_format($item->subtotal,2) }}</td>

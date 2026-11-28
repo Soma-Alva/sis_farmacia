@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Producto;
+use App\Models\ProductoPresentacion;
 use App\Models\Categoria;
 use App\Models\Proveedor;
 
@@ -60,6 +61,9 @@ class ProductoController extends Controller
         'precio_venta' => 'required|numeric', 
         'stock_minimo' => 'required|integer',
         'descripcion' => 'nullable|string',
+        'presentaciones.*.nombre' => 'nullable|string|max:100',
+        'presentaciones.*.unidades' => 'nullable|integer|min:2',
+        'presentaciones.*.precio_venta' => 'nullable|numeric|min:0',
         ],[
             'codigo_barra.unique' => 'Este código de barras ya está registrado en otro producto.',
             'codigo_barra.required' => 'Debe ingresar un código de barras.'
@@ -70,10 +74,13 @@ class ProductoController extends Controller
         // real (que crea su lote). Así stock_actual queda siempre
         // sincronizado con la suma de lotes, sin que nadie pueda
         // escribir un número arbitrario.
+        $filasPres = $this->filasPresentaciones($request);
         $datos = $request->except('stock_actual');
         $datos['stock_actual'] = 0;
 
-        Producto::create($datos);
+        unset($datos['presentaciones']);
+        $producto = Producto::create($datos);
+        $this->guardarPresentaciones($producto, $filasPres);
 
         return redirect()->route('productos.index')
             ->with('success', 'Producto creado correctamente');
@@ -108,6 +115,9 @@ class ProductoController extends Controller
         'precio_venta' => 'required|numeric',
         'stock_minimo' => 'required|integer',
         'descripcion' => 'nullable|string',
+        'presentaciones.*.nombre' => 'nullable|string|max:100',
+        'presentaciones.*.unidades' => 'nullable|integer|min:2',
+        'presentaciones.*.precio_venta' => 'nullable|numeric|min:0',
         ],[
             'codigo_barra.unique' => 'Este código de barras ya está registrado en otro producto.',
             'codigo_barra.required' => 'Debe ingresar un código de barras.'
@@ -120,7 +130,9 @@ class ProductoController extends Controller
         // anulaciones, que son las únicas operaciones que saben de
         // lotes. Se excluye explícitamente por si alguien manipula el
         // HTML y envía el campo de todas formas.
-        $producto->update($request->except('stock_actual'));
+        $filasPres = $this->filasPresentaciones($request);
+        $producto->update($request->except('stock_actual', 'presentaciones'));
+        $this->guardarPresentaciones($producto, $filasPres);
         
         return redirect()->route('productos.index')
             ->with('success', 'Producto actualizado correctamente');
@@ -133,5 +145,43 @@ class ProductoController extends Controller
 
         return redirect()->route('productos.index')
             ->with('success', 'Producto eliminado correctamente');
+    }
+
+    /**
+     * Filas de presentaciones por paquete del formulario (se ignoran
+     * las filas vacías). Una fila a medias se rechaza con un mensaje
+     * claro, ANTES de guardar el producto.
+     */
+    private function filasPresentaciones(Request $request)
+    {
+        $filas = collect($request->input('presentaciones', []))
+            ->filter(fn ($f) => filled($f['nombre'] ?? null) || filled($f['unidades'] ?? null) || filled($f['precio_venta'] ?? null))
+            ->values();
+
+        foreach ($filas as $f) {
+            if (!filled($f['nombre'] ?? null) || !filled($f['unidades'] ?? null) || !filled($f['precio_venta'] ?? null)) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'presentaciones' => 'Cada presentación por caja necesita nombre, unidades y precio.',
+                ]);
+            }
+        }
+
+        return $filas;
+    }
+
+    /** Reemplaza las presentaciones del producto con las ya validadas. */
+    private function guardarPresentaciones(Producto $producto, $filas): void
+    {
+        ProductoPresentacion::where('id_producto', $producto->id_producto)->delete();
+
+        foreach ($filas as $f) {
+            ProductoPresentacion::create([
+                'id_producto' => $producto->id_producto,
+                'nombre' => trim($f['nombre']),
+                'unidades' => (int) $f['unidades'],
+                'precio_venta' => (float) $f['precio_venta'],
+                'activo' => 1,
+            ]);
+        }
     }
 }

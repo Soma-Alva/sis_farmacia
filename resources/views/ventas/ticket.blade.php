@@ -204,7 +204,7 @@
             @foreach($detalle as $item)
             <tr>
                 <td>
-                    {{ $item->nombre }}
+                    {{ $item->nombre }}@if($item->presentacion) ({{ $item->presentacion }})@endif
                 </td>
                 <td class="gf-ticket-num">{{ $item->cantidad }}</td>
                 <td class="gf-ticket-num">{{ number_format($item->precio_unitario, 2) }}</td>

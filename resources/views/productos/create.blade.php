@@ -126,6 +126,8 @@
             número de lote y fecha de vencimiento, y apruébala.
         </div>
 
+        @include('productos._presentaciones')
+
         <div class="mb-3">
             <label>Descripción <small class="text-muted">(opcional)</small></label>
             <input type="text" name="descripcion" class="form-control">

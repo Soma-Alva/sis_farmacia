@@ -138,6 +138,8 @@
                 </div>
             </div>
 
+            @include('productos._presentaciones', ['presentaciones' => $producto->presentaciones])
+
             <div class="mb-3">
                 <label>Descripción <small class="text-muted">(opcional)</small></label>
                 <input type="text"

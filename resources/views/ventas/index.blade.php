@@ -383,6 +383,14 @@
             'stock'    => (int) $p->stock_actual,
             'lote'     => $p->proximo_lote,
             'vence'    => $p->proximo_vencimiento,
+            'presentaciones' => $p->presentaciones->map(function ($pr) {
+                return [
+                    'id'       => $pr->id_presentacion,
+                    'nombre'   => $pr->nombre,
+                    'unidades' => (int) $pr->unidades,
+                    'precio'   => (float) $pr->precio_venta,
+                ];
+            })->values(),
         ];
     })->values();
 @endphp
@@ -404,26 +412,43 @@
         return catalogo.find(p => p.codigo && p.codigo === codigo);
     }
 
-    function agregarProducto(producto){
+    // Unidades del producto que ya están en el carrito (sueltas + las
+    // que ocupan las cajas/paquetes): todas salen del MISMO stock.
+    function unidadesEnCarrito(id){
+        return carrito
+            .filter(p => p.id === id)
+            .reduce((acc, p) => acc + p.cantidad * p.unidades, 0);
+    }
+
+    // `pres` es opcional: una presentación (ej. "Caja x100") del producto.
+    function agregarProducto(producto, pres){
+        const unidades = pres ? pres.unidades : 1;
+
         if (producto.stock <= 0){
             alert('"' + producto.nombre + '" no tiene stock disponible.');
             return;
         }
 
-        let item = carrito.find(p => p.id === producto.id);
+        if (unidadesEnCarrito(producto.id) + unidades > producto.stock){
+            alert('No hay suficiente stock de "' + producto.nombre + '"' +
+                  (pres ? ' para una ' + pres.nombre + ' (' + unidades + ' unidades).' : '.'));
+            return;
+        }
+
+        const key = pres ? producto.id + '-' + pres.id : String(producto.id);
+        let item = carrito.find(p => p.key === key);
 
         if (item){
-            if (item.cantidad >= producto.stock){
-                alert('No hay suficiente stock de "' + producto.nombre + '".');
-                return;
-            }
             item.cantidad++;
         } else {
             carrito.push({
+                key: key,
                 id: producto.id,
-                nombre: producto.nombre,
+                idPres: pres ? pres.id : null,
+                nombre: pres ? producto.nombre + ' (' + pres.nombre + ')' : producto.nombre,
                 codigo: producto.codigo,
-                precio: producto.precio,
+                precio: pres ? pres.precio : producto.precio,
+                unidades: unidades,
                 stock: producto.stock,
                 lote: producto.lote,
                 vence: producto.vence,
@@ -434,48 +459,49 @@
         render();
     }
 
-    function removerItem(id){
-        carrito = carrito.filter(p => p.id !== id);
+    function removerItem(key){
+        carrito = carrito.filter(p => p.key !== key);
         render();
     }
 
-    function cambiarCantidad(id, delta){
-        let item = carrito.find(p => p.id === id);
+    // Máximo de piezas de esta línea que permite el stock, descontando
+    // lo que ya ocupan las otras líneas del mismo producto.
+    function maximoLinea(item){
+        const otras = unidadesEnCarrito(item.id) - item.cantidad * item.unidades;
+        return Math.floor((item.stock - otras) / item.unidades);
+    }
+
+    function cambiarCantidad(key, delta){
+        let item = carrito.find(p => p.key === key);
         if (!item) return;
 
-        item.cantidad += delta;
-
-        if (item.cantidad <= 0){
-            removerItem(id);
-            return;
-        }
-
-        if (item.cantidad > item.stock){
-            alert('Stock insuficiente.');
-            item.cantidad = item.stock;
-        }
-
-        render();
+        fijarCantidad(key, item.cantidad + delta);
     }
 
     // Cantidad escrita a mano (para cantidades grandes sin dar click
     // muchas veces). Vacío o inválido: se conserva la anterior; mayor
     // al stock: se ajusta al máximo disponible; 0 o menos: quita el ítem.
-    function fijarCantidad(id, valor){
-        let item = carrito.find(p => p.id === id);
+    function fijarCantidad(key, valor){
+        let item = carrito.find(p => p.key === key);
         if (!item) return;
 
         let n = parseInt(valor, 10);
         if (isNaN(n)){ render(); return; }
 
         if (n <= 0){
-            removerItem(id);
+            removerItem(key);
             return;
         }
 
-        if (n > item.stock){
-            alert('Stock insuficiente. Máximo disponible: ' + item.stock + '.');
-            n = item.stock;
+        const max = maximoLinea(item);
+
+        if (n > max){
+            alert('Stock insuficiente. Máximo disponible para esta línea: ' + Math.max(max, 0) + '.');
+            n = max;
+            if (n <= 0){
+                removerItem(key);
+                return;
+            }
         }
 
         item.cantidad = n;
@@ -505,28 +531,28 @@
             tbody.innerHTML = carrito.map(p => {
                 const subtotal = p.precio * p.cantidad;
                 total += subtotal;
-                totalPiezas += p.cantidad;
+                totalPiezas += p.cantidad * p.unidades;
 
                 return `
                     <tr>
                         <td>${p.codigo ?? '—'}</td>
-                        <td>${p.nombre}</td>
+                        <td>${p.nombre}${p.unidades > 1 ? '<div class="text-muted small">' + (p.cantidad * p.unidades) + ' unidades</div>' : ''}</td>
                         <td>${p.lote ?? '—'}</td>
                         <td>${p.vence ?? '—'}</td>
                         <td class="text-center">
                             <div class="gf-cant-stepper">
-                                <button type="button" onclick="cambiarCantidad(${p.id}, -1)">-</button>
-                                <input type="number" min="1" max="${p.stock}" value="${p.cantidad}"
+                                <button type="button" onclick="cambiarCantidad('${p.key}', -1)">-</button>
+                                <input type="number" min="1" value="${p.cantidad}"
                                        onfocus="this.select()"
-                                       onchange="fijarCantidad(${p.id}, this.value)"
+                                       onchange="fijarCantidad('${p.key}', this.value)"
                                        onkeydown="if(event.key==='Enter'){ this.blur(); }">
-                                <button type="button" onclick="cambiarCantidad(${p.id}, 1)">+</button>
+                                <button type="button" onclick="cambiarCantidad('${p.key}', 1)">+</button>
                             </div>
                         </td>
                         <td class="text-end">C$ ${formatear(p.precio)}</td>
                         <td class="text-end">C$ ${formatear(subtotal)}</td>
                         <td class="text-center">
-                            <button type="button" class="gf-btn-soft gf-btn-peligro" onclick="removerItem(${p.id})">
+                            <button type="button" class="gf-btn-soft gf-btn-peligro" onclick="removerItem('${p.key}')">
                                 <i class="bi bi-trash"></i>
                             </button>
                         </td>
@@ -538,7 +564,7 @@
         document.getElementById('totalPiezas').textContent = totalPiezas;
 
         document.getElementById('productosInput').value = JSON.stringify(
-            carrito.map(p => ({ id: p.id, cantidad: p.cantidad, precio: p.precio }))
+            carrito.map(p => ({ id: p.id, id_presentacion: p.idPres, cantidad: p.cantidad, precio: p.precio }))
         );
         document.getElementById('totalInput').value = total;
 
@@ -585,6 +611,15 @@
                 </div>
                 <div class="precio">C$ ${formatear(p.precio)}</div>
             </div>
+            ${p.presentaciones.map(pr => `
+                <div class="gf-pos-sugerencia ${p.stock < pr.unidades ? 'sin-stock' : ''}" data-id="${p.id}" data-pres="${pr.id}" style="padding-left:28px;">
+                    <div>
+                        <div class="nombre"><i class="bi bi-box-seam"></i> ${pr.nombre}</div>
+                        <div class="meta">${pr.unidades} unidades de ${p.nombre}</div>
+                    </div>
+                    <div class="precio">C$ ${formatear(pr.precio)}</div>
+                </div>
+            `).join('')}
         `).join('');
 
         cajaSugerencias.classList.add('activo');
@@ -645,7 +680,12 @@
         if (!fila || fila.classList.contains('sin-stock')) return;
 
         const producto = catalogo.find(p => p.id === parseInt(fila.dataset.id));
-        if (producto) agregarProducto(producto);
+        if (producto){
+            const pres = fila.dataset.pres
+                ? producto.presentaciones.find(x => x.id === parseInt(fila.dataset.pres))
+                : null;
+            agregarProducto(producto, pres);
+        }
 
         inputBuscar.value = '';
         renderSugerencias([]);
