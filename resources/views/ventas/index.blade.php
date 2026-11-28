@@ -408,6 +408,21 @@
         return Number(valor || 0).toFixed(2);
     }
 
+    // Precio unitario: hasta 4 decimales, sin ceros de más y mínimo 2
+    // (7 -> 7.00, 2.6 -> 2.60, 2.6087 -> 2.6087).
+    function formatearPrecio(valor){
+        const s = (Math.round((Number(valor) || 0) * 10000) / 10000).toFixed(4).replace(/0+$/, '');
+        const dec = (s.split('.')[1] || '').padEnd(2, '0');
+        return s.split('.')[0] + '.' + dec;
+    }
+
+    // Lo que se cobra va en córdobas con centavos: cada línea se
+    // redondea a 2 decimales y el total es la suma de líneas ya
+    // redondeadas, para que lo que se ve siempre cuadre.
+    function redondear2(valor){
+        return Math.round((Number(valor) || 0) * 100) / 100;
+    }
+
     function buscarPorCodigoExacto(codigo){
         return catalogo.find(p => p.codigo && p.codigo === codigo);
     }
@@ -529,7 +544,7 @@
                 </tr>`;
         } else {
             tbody.innerHTML = carrito.map(p => {
-                const subtotal = p.precio * p.cantidad;
+                const subtotal = redondear2(p.precio * p.cantidad);
                 total += subtotal;
                 totalPiezas += p.cantidad * p.unidades;
 
@@ -549,7 +564,7 @@
                                 <button type="button" onclick="cambiarCantidad('${p.key}', 1)">+</button>
                             </div>
                         </td>
-                        <td class="text-end">C$ ${formatear(p.precio)}</td>
+                        <td class="text-end">C$ ${formatearPrecio(p.precio)}</td>
                         <td class="text-end">C$ ${formatear(subtotal)}</td>
                         <td class="text-center">
                             <button type="button" class="gf-btn-soft gf-btn-peligro" onclick="removerItem('${p.key}')">
@@ -566,6 +581,7 @@
         document.getElementById('productosInput').value = JSON.stringify(
             carrito.map(p => ({ id: p.id, id_presentacion: p.idPres, cantidad: p.cantidad, precio: p.precio }))
         );
+        total = redondear2(total);
         document.getElementById('totalInput').value = total;
 
         let subtotalSinIva = total;
@@ -609,7 +625,7 @@
                     <div class="nombre">${p.nombre}</div>
                     <div class="meta">${p.codigo ? 'Código: ' + p.codigo : 'Sin código'} · Stock: ${p.stock}</div>
                 </div>
-                <div class="precio">C$ ${formatear(p.precio)}</div>
+                <div class="precio">C$ ${formatearPrecio(p.precio)}</div>
             </div>
             ${p.presentaciones.map(pr => `
                 <div class="gf-pos-sugerencia ${p.stock < pr.unidades ? 'sin-stock' : ''}" data-id="${p.id}" data-pres="${pr.id}" style="padding-left:28px;">
@@ -617,7 +633,7 @@
                         <div class="nombre"><i class="bi bi-box-seam"></i> ${pr.nombre}</div>
                         <div class="meta">${pr.unidades} unidades de ${p.nombre}</div>
                     </div>
-                    <div class="precio">C$ ${formatear(pr.precio)}</div>
+                    <div class="precio">C$ ${formatearPrecio(pr.precio)}</div>
                 </div>
             `).join('')}
         `).join('');

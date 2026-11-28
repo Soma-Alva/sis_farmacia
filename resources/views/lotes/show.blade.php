@@ -86,7 +86,7 @@
                 </div>
                 <div class="col-md-4 mt-3">
                     <div class="gf-page-subtitle">Costo unitario</div>
-                    <div class="fw-semibold">C$ {{ number_format($lote->costo_unitario, 2) }}</div>
+                    <div class="fw-semibold">C$ @dinero($lote->costo_unitario)</div>
                 </div>
             </div>
         </div>

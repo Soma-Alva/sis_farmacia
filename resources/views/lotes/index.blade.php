@@ -138,7 +138,7 @@
                                     {{ $lote->cantidad_actual }} / {{ $lote->cantidad_inicial }}
                                 </span>
                             </td>
-                            <td>C$ {{ number_format($lote->costo_unitario, 2) }}</td>
+                            <td>C$ @dinero($lote->costo_unitario)</td>
                             <td>
                                 <span class="gf-badge
                                     {{ $lote->estado == 'ACTIVO' ? 'gf-badge-exito' :

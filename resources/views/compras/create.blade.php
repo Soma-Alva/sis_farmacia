@@ -118,7 +118,7 @@
             <input type="number" name="cantidad[]" class="form-control input-cantidad" value="1" min="1" required>
         </td>
         <td>
-            <input type="number" name="precio[]" step="0.01" min="0" class="form-control input-precio" value="0" required>
+            <input type="number" name="precio[]" step="0.0001" min="0" class="form-control input-precio" value="0" required>
         </td>
         <td>
             <input type="text" name="numero_lote[]" class="form-control" placeholder="Opcional">
@@ -143,14 +143,27 @@ document.addEventListener('DOMContentLoaded', function () {
     const btnAgregar = document.getElementById('btnAgregarFila');
     const totalEl = document.getElementById('totalCompra');
 
+    // Hasta 4 decimales de precisión, sin ceros de más y mínimo 2:
+    // 7 -> 7.00, 2.6 -> 2.60, 2.6087 -> 2.6087.
+    function redondear4(valor) {
+        return Math.round((Number(valor) || 0) * 10000) / 10000;
+    }
+
+    function textoNumero(valor) {
+        const s = redondear4(valor).toFixed(4).replace(/0+$/, '');
+        const [ent, dec = ''] = s.split('.');
+        const entero = ent.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        return entero + '.' + dec.padEnd(2, '0');
+    }
+
     function formatoMoneda(valor) {
-        return 'C$ ' + Number(valor || 0).toFixed(2);
+        return 'C$ ' + textoNumero(valor);
     }
 
     function recalcularFila(fila) {
         const cantidad = parseFloat(fila.querySelector('.input-cantidad').value) || 0;
         const precio = parseFloat(fila.querySelector('.input-precio').value) || 0;
-        const subtotal = cantidad * precio;
+        const subtotal = redondear4(cantidad * precio);
         fila.querySelector('.subtotal-fila').textContent = formatoMoneda(subtotal);
         return subtotal;
     }
@@ -160,7 +173,7 @@ document.addEventListener('DOMContentLoaded', function () {
         tbody.querySelectorAll('tr').forEach(fila => {
             total += recalcularFila(fila);
         });
-        totalEl.textContent = formatoMoneda(total);
+        totalEl.textContent = formatoMoneda(redondear4(total));
     }
 
     function actualizarBotonesQuitar() {
@@ -181,7 +194,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const opt = this.options[this.selectedIndex];
             const precio = opt ? opt.getAttribute('data-precio') : null;
             if (precio && parseFloat(fila.querySelector('.input-precio').value) === 0) {
-                fila.querySelector('.input-precio').value = parseFloat(precio).toFixed(2);
+                fila.querySelector('.input-precio').value = textoNumero(parseFloat(precio)).replace(/,/g, '');
             }
             recalcularTotal();
         });

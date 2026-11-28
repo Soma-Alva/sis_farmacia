@@ -57,13 +57,13 @@ class ProductoController extends Controller
         'id_proveedor' => 'required',
         'concentracion' => 'nullable|string|max:50',
         'presentacion' => 'nullable|string|max:100',
-        'precio_compra' => 'required|numeric',
-        'precio_venta' => 'required|numeric', 
+        'precio_compra' => 'required|numeric|min:0|decimal:0,4',
+        'precio_venta' => 'required|numeric|min:0|decimal:0,4',
         'stock_minimo' => 'required|integer',
         'descripcion' => 'nullable|string',
         'presentaciones.*.nombre' => 'nullable|string|max:100',
         'presentaciones.*.unidades' => 'nullable|integer|min:2',
-        'presentaciones.*.precio_venta' => 'nullable|numeric|min:0',
+        'presentaciones.*.precio_venta' => 'nullable|numeric|min:0|decimal:0,4',
         ],[
             'codigo_barra.unique' => 'Este código de barras ya está registrado en otro producto.',
             'codigo_barra.required' => 'Debe ingresar un código de barras.'
@@ -111,13 +111,13 @@ class ProductoController extends Controller
         'id_proveedor' => 'required',
         'concentracion' => 'nullable|string|max:50',
         'presentacion' => 'nullable|string|max:100',
-        'precio_compra' => 'required|numeric',
-        'precio_venta' => 'required|numeric',
+        'precio_compra' => 'required|numeric|min:0|decimal:0,4',
+        'precio_venta' => 'required|numeric|min:0|decimal:0,4',
         'stock_minimo' => 'required|integer',
         'descripcion' => 'nullable|string',
         'presentaciones.*.nombre' => 'nullable|string|max:100',
         'presentaciones.*.unidades' => 'nullable|integer|min:2',
-        'presentaciones.*.precio_venta' => 'nullable|numeric|min:0',
+        'presentaciones.*.precio_venta' => 'nullable|numeric|min:0|decimal:0,4',
         ],[
             'codigo_barra.unique' => 'Este código de barras ya está registrado en otro producto.',
             'codigo_barra.required' => 'Debe ingresar un código de barras.'

@@ -53,7 +53,7 @@
                 </div>
                 <div class="col-md-3">
                     <input type="number" class="form-control" name="presentaciones[${i}][precio_venta]"
-                           placeholder="Precio caja" min="0" step="0.01">
+                           placeholder="Precio caja" min="0" step="0.0001">
                 </div>
                 <div class="col-md-1">
                     <button type="button" class="btn btn-outline-danger w-100" title="Quitar"

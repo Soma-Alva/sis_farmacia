@@ -57,7 +57,7 @@
                     <tr>
                         <td class="fw-semibold">{{ $item->nombre }}@if($item->presentacion) <small class="text-muted">({{ $item->presentacion }})</small>@endif</td>
                         <td>{{ $item->cantidad }}</td>
-                        <td>C$ {{ number_format($item->precio_unitario,2) }}</td>
+                        <td>C$ @dinero($item->precio_unitario)</td>
                         <td>C$ {{ number_format($item->subtotal,2) }}</td>
                         <td>{{ $item->numero_lote ?? '—' }}</td>
                         <td>{{ $item->fecha_vencimiento ?? '—' }}</td>

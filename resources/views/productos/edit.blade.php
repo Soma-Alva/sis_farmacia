@@ -95,9 +95,9 @@
                 <input type="number"
                     name="precio_compra"
                     class="form-control"
-                    step="0.01"
+                    step="0.0001"
                     min="0"
-                    value="{{ $producto->precio_compra }}" required> 
+                    value="{{ \App\Support\Dinero::plano($producto->precio_compra) }}" required> 
             </div>
 
             <div class="mb-3">
@@ -106,9 +106,9 @@
                 <input type="number"
                     name="precio_venta"
                     class="form-control"
-                    step="0.01"
+                    step="0.0001"
                     min="0"
-                    value="{{ $producto->precio_venta }}" required>
+                    value="{{ \App\Support\Dinero::plano($producto->precio_venta) }}" required>
             </div>
 
             <div class="mb-3">

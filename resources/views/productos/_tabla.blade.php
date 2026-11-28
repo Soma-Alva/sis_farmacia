@@ -32,8 +32,8 @@
                         <td>{{ $p->proveedor->nombre ?? 'N/A' }}</td>
                         <td>{{ $p->concentracion }}</td>
                         <td>{{ $p->presentacion }}</td>
-                        <td>C$ {{ number_format($p->precio_compra, 2) }}</td>
-                        <td>C$ {{ number_format($p->precio_venta, 2) }}</td>
+                        <td>C$ @dinero($p->precio_compra)</td>
+                        <td>C$ @dinero($p->precio_venta)</td>
                         <td>{{ $p->stock_minimo }}</td>
                         <td>
                             <span class="gf-badge {{ $p->stock_actual <= $p->stock_minimo ? 'gf-badge-peligro' : 'gf-badge-neutro' }}">

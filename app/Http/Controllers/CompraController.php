@@ -89,7 +89,7 @@ class CompraController extends Controller
             'cantidad'                  => 'required|array|min:1',
             'cantidad.*'                => 'required|integer|min:1',
             'precio'                    => 'required|array|min:1',
-            'precio.*'                  => 'required|numeric|min:0',
+            'precio.*'                  => 'required|numeric|min:0|decimal:0,4',
             'numero_lote'               => 'nullable|array',
             'numero_lote.*'             => 'nullable|string|max:100',
             'fecha_vencimiento'         => 'nullable|array',
@@ -115,7 +115,10 @@ class CompraController extends Controller
 
             $totalCompra = 0;
             foreach ($productos as $i => $idProducto) {
-                $totalCompra += $cantidades[$i] * $precios[$i];
+                // Cada línea se redondea a 4 decimales (la precisión de
+                // la base de datos) y el total es la suma de esas líneas
+                // ya redondeadas: así subtotal y total siempre cuadran.
+                $totalCompra += round($cantidades[$i] * $precios[$i], 4);
             }
 
             $compra = Compra::create([
@@ -123,9 +126,9 @@ class CompraController extends Controller
                 'id_proveedor'   => $request->id_proveedor,
                 'id_usuario'     => auth()->user()->id_usuario,
                 'fecha_compra'   => $request->fecha_compra,
-                'subtotal'       => $totalCompra,
+                'subtotal'       => round($totalCompra, 4),
                 'igv'            => 0,
-                'total'          => $totalCompra,
+                'total'          => round($totalCompra, 4),
                 'estado'         => 'PENDIENTE',
             ]);
 
@@ -139,7 +142,7 @@ class CompraController extends Controller
                     'id_producto'       => $idProducto,
                     'cantidad'          => $cantidad,
                     'precio_unitario'   => $precio,
-                    'subtotal'          => $cantidad * $precio,
+                    'subtotal'          => round($cantidad * $precio, 4),
                     'numero_lote'       => $numerosLote[$i] ?? null,
                     'fecha_vencimiento' => $fechasVencimiento[$i] ?? null,
                 ]);

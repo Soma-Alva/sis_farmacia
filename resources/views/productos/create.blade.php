@@ -92,7 +92,8 @@
             <label>Precio Compra</label>
 
             <input  type="number"
-                    step="0.01"
+                    step="0.0001"
+                    min="0"
                     name="precio_compra"
                     class="form-control"
                     required>
@@ -102,7 +103,8 @@
             <label>Precio Venta</label>
 
             <input  type="number"
-                    step="0.01"
+                    step="0.0001"
+                    min="0"
                     name="precio_venta"
                     class="form-control"
                     required>

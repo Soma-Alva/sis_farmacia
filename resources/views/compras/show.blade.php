@@ -25,7 +25,7 @@
         </div>
         <div class="col-md-3">
             <div class="gf-page-subtitle">Total</div>
-            <div class="fw-semibold">C$ {{ number_format($compra->total, 2) }}</div>
+            <div class="fw-semibold">C$ @dinero($compra->total)</div>
         </div>
     </div>
 </div>
@@ -50,8 +50,8 @@
                         <tr>
                             <td class="fw-semibold">{{ $d->producto->nombre ?? 'Producto eliminado' }}</td>
                             <td>{{ $d->cantidad }}</td>
-                            <td>C$ {{ number_format($d->precio_unitario, 2) }}</td>
-                            <td>C$ {{ number_format($d->subtotal, 2) }}</td>
+                            <td>C$ @dinero($d->precio_unitario)</td>
+                            <td>C$ @dinero($d->subtotal)</td>
                             <td>{{ $d->numero_lote ?? '—' }}</td>
                             <td>{{ $d->fecha_vencimiento ?? '—' }}</td>
                             <td>

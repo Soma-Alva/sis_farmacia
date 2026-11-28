@@ -218,7 +218,7 @@
                     {{ $item->nombre }}@if($item->presentacion) ({{ $item->presentacion }})@endif
                 </td>
                 <td class="gf-ticket-num">{{ $item->cantidad }}</td>
-                <td class="gf-ticket-num">{{ number_format($item->precio_unitario, 2) }}</td>
+                <td class="gf-ticket-num">@dinero($item->precio_unitario)</td>
                 <td class="gf-ticket-num">{{ number_format($item->subtotal, 2) }}</td>
             </tr>
             @endforeach

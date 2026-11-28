@@ -19,6 +19,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // @dinero($valor): monto con hasta 4 decimales, sin ceros sobrantes
+        \Illuminate\Support\Facades\Blade::directive('dinero', function ($expresion) {
+            return "<?php echo \\App\\Support\\Dinero::fmt({$expresion}); ?>";
+        });
     }
 }

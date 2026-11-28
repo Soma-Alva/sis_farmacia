@@ -21,7 +21,7 @@
                         <td class="fw-semibold">{{ $c->numero_factura }}</td>
                         <td>{{ $c->proveedor->nombre ?? 'N/A' }}</td>
                         <td>{{ $c->fecha_compra }}</td>
-                        <td>C$ {{ number_format($c->total,2) }}</td>
+                        <td>C$ @dinero($c->total)</td>
                         <td>
                             <span class="gf-badge {{ $c->estado == 'APROBADA' ? 'gf-badge-exito' : ($c->estado == 'CANCELADA' ? 'gf-badge-peligro' : 'gf-badge-alerta') }}">
                                 {{ $c->estado }}
