@@ -70,18 +70,14 @@ class CompraController extends Controller
         return view('compras.show', compact('compra'));
     }
 
-    /**
-     * Registra una compra con una o varias lineas de producto.
-     * Cada linea puede traer su propio numero de lote y fecha de
-     * vencimiento (se piden aqui porque es cuando el usuario tiene la
-     * factura fisica en la mano), pero el lote real en la tabla
-     * `lotes` no se crea todavia: eso pasa al aprobar() la compra,
-     * que es el momento en que ese stock entra de verdad al sistema.
-     */
-    public function store(Request $request)
+    /** Reglas de validación compartidas por store() y update(). */
+    private function reglasCompra($ignorarId = null): array
     {
-        $request->validate([
-            'numero_factura'            => 'required|unique:compras,numero_factura',
+        $unica = 'required|unique:compras,numero_factura'
+            . ($ignorarId ? ',' . $ignorarId . ',id_compra' : '');
+
+        return [[
+            'numero_factura'            => $unica,
             'id_proveedor'              => 'required|exists:proveedores,id_proveedor',
             'fecha_compra'              => 'required|date',
             'id_producto'               => 'required|array|min:1',
@@ -101,51 +97,73 @@ class CompraController extends Controller
             'fecha_compra.required'   => 'Debe seleccionar una fecha.',
             'id_producto.required'    => 'Debe agregar al menos un producto.',
             'cantidad.*.min'          => 'La cantidad debe ser al menos 1.',
-        ]);
+        ]];
+    }
+
+    /**
+     * Líneas de la compra tal como llegan del formulario, con cada
+     * subtotal redondeado a 4 decimales (la precisión de la base de
+     * datos) y el total como suma de esas líneas ya redondeadas, para
+     * que subtotal y total siempre cuadren.
+     */
+    private function lineasDelFormulario(Request $request): array
+    {
+        $numerosLote = $request->numero_lote ?? [];
+        $fechasVencimiento = $request->fecha_vencimiento ?? [];
+
+        $lineas = [];
+        $total = 0;
+
+        foreach ($request->id_producto as $i => $idProducto) {
+            $cantidad = (int) $request->cantidad[$i];
+            $precio = $request->precio[$i];
+            $subtotal = round($cantidad * $precio, 4);
+            $total += $subtotal;
+
+            $lineas[] = [
+                'id_producto'       => $idProducto,
+                'cantidad'          => $cantidad,
+                'precio_unitario'   => $precio,
+                'subtotal'          => $subtotal,
+                'numero_lote'       => ($numerosLote[$i] ?? null) ?: null,
+                'fecha_vencimiento' => ($fechasVencimiento[$i] ?? null) ?: null,
+            ];
+        }
+
+        return [$lineas, round($total, 4)];
+    }
+
+    /**
+     * Registra una compra con una o varias lineas de producto.
+     * Cada linea puede traer su propio numero de lote y fecha de
+     * vencimiento (se piden aqui porque es cuando el usuario tiene la
+     * factura fisica en la mano), pero el lote real en la tabla
+     * `lotes` no se crea todavia: eso pasa al aprobar() la compra,
+     * que es el momento en que ese stock entra de verdad al sistema.
+     */
+    public function store(Request $request)
+    {
+        $request->validate(...$this->reglasCompra());
 
         DB::beginTransaction();
 
         try {
 
-            $productos = $request->id_producto;
-            $cantidades = $request->cantidad;
-            $precios = $request->precio;
-            $numerosLote = $request->numero_lote ?? [];
-            $fechasVencimiento = $request->fecha_vencimiento ?? [];
-
-            $totalCompra = 0;
-            foreach ($productos as $i => $idProducto) {
-                // Cada línea se redondea a 4 decimales (la precisión de
-                // la base de datos) y el total es la suma de esas líneas
-                // ya redondeadas: así subtotal y total siempre cuadran.
-                $totalCompra += round($cantidades[$i] * $precios[$i], 4);
-            }
+            [$lineas, $totalCompra] = $this->lineasDelFormulario($request);
 
             $compra = Compra::create([
                 'numero_factura' => $request->numero_factura,
                 'id_proveedor'   => $request->id_proveedor,
                 'id_usuario'     => auth()->user()->id_usuario,
                 'fecha_compra'   => $request->fecha_compra,
-                'subtotal'       => round($totalCompra, 4),
+                'subtotal'       => $totalCompra,
                 'igv'            => 0,
-                'total'          => round($totalCompra, 4),
+                'total'          => $totalCompra,
                 'estado'         => 'PENDIENTE',
             ]);
 
-            foreach ($productos as $i => $idProducto) {
-
-                $cantidad = $cantidades[$i];
-                $precio = $precios[$i];
-
-                DetalleCompra::create([
-                    'id_compra'         => $compra->id_compra,
-                    'id_producto'       => $idProducto,
-                    'cantidad'          => $cantidad,
-                    'precio_unitario'   => $precio,
-                    'subtotal'          => round($cantidad * $precio, 4),
-                    'numero_lote'       => $numerosLote[$i] ?? null,
-                    'fecha_vencimiento' => $fechasVencimiento[$i] ?? null,
-                ]);
+            foreach ($lineas as $linea) {
+                DetalleCompra::create($linea + ['id_compra' => $compra->id_compra]);
             }
 
             DB::commit();
@@ -153,6 +171,80 @@ class CompraController extends Controller
             return redirect()
                 ->route('compras.index')
                 ->with('success', 'Compra registrada correctamente');
+
+        } catch (\Exception $e) {
+
+            DB::rollBack();
+
+            return back()
+                ->withInput()
+                ->withErrors($e->getMessage());
+        }
+    }
+
+    /** Solo se puede editar una compra que todavía no fue aprobada. */
+    public function edit($id)
+    {
+        $compra = Compra::with('detalles')->findOrFail($id);
+
+        if ($compra->estado !== 'PENDIENTE') {
+            return redirect()
+                ->route('compras.show', $id)
+                ->with('error', 'Solo se puede editar una compra pendiente de aprobar.');
+        }
+
+        $proveedores = Proveedor::where('activo', true)->orderBy('nombre')->get();
+        $productos = Producto::where('activo', true)->orderBy('nombre')->get();
+
+        return view('compras.create', compact('compra', 'proveedores', 'productos'));
+    }
+
+    /**
+     * Actualiza una compra PENDIENTE: reemplaza su cabecera y sus
+     * líneas. Como aún no se aprobó, no hay lotes ni stock que tocar.
+     * El estado se revisa dentro de la transacción (con bloqueo) para
+     * que no se pueda editar una compra que otro usuario aprueba justo
+     * en ese momento.
+     */
+    public function update(Request $request, $id)
+    {
+        $request->validate(...$this->reglasCompra($id));
+
+        DB::beginTransaction();
+
+        try {
+
+            $compra = Compra::lockForUpdate()->findOrFail($id);
+
+            if ($compra->estado !== 'PENDIENTE') {
+                DB::rollBack();
+
+                return redirect()
+                    ->route('compras.show', $id)
+                    ->with('error', 'Esta compra ya no está pendiente, no se puede editar.');
+            }
+
+            [$lineas, $totalCompra] = $this->lineasDelFormulario($request);
+
+            $compra->update([
+                'numero_factura' => $request->numero_factura,
+                'id_proveedor'   => $request->id_proveedor,
+                'fecha_compra'   => $request->fecha_compra,
+                'subtotal'       => $totalCompra,
+                'total'          => $totalCompra,
+            ]);
+
+            DetalleCompra::where('id_compra', $compra->id_compra)->delete();
+
+            foreach ($lineas as $linea) {
+                DetalleCompra::create($linea + ['id_compra' => $compra->id_compra]);
+            }
+
+            DB::commit();
+
+            return redirect()
+                ->route('compras.show', $compra->id_compra)
+                ->with('success', 'Compra actualizada correctamente. Sigue pendiente de aprobar.');
 
         } catch (\Exception $e) {
 

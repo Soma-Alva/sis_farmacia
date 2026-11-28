@@ -2,12 +2,14 @@
 
 @section('content')
 
+@php $editando = isset($compra); @endphp
+
 <div class="container-fluid">
 
     <div class="card shadow">
 
         <div class="card-header bg-primary text-white">
-            <h4>Nueva Compra</h4>
+            <h4>{{ $editando ? 'Editar Compra ' . $compra->numero_factura : 'Nueva Compra' }}</h4>
             @if ($errors->any())
                 <div class="alert alert-danger mt-2 mb-0">
                     <ul class="mb-0">
@@ -21,15 +23,16 @@
 
         <div class="card-body">
 
-            <form action="{{ route('compras.store') }}" method="POST" id="formCompra">
+            <form action="{{ $editando ? route('compras.update', $compra->id_compra) : route('compras.store') }}" method="POST" id="formCompra">
                 @csrf
+                @if($editando) @method('PUT') @endif
 
                 <div class="row">
 
                     <div class="col-md-4">
                         <label class="form-label">Número Factura</label>
                         <input type="text" name="numero_factura" class="form-control"
-                               value="{{ old('numero_factura') }}" required>
+                               value="{{ old('numero_factura', $editando ? $compra->numero_factura : '') }}" required>
                     </div>
 
                     <div class="col-md-4">
@@ -38,7 +41,7 @@
                             <option value="">Seleccione</option>
                             @foreach($proveedores as $p)
                                 <option value="{{ $p->id_proveedor }}"
-                                    {{ old('id_proveedor') == $p->id_proveedor ? 'selected' : '' }}>
+                                    {{ old('id_proveedor', $editando ? $compra->id_proveedor : null) == $p->id_proveedor ? 'selected' : '' }}>
                                     {{ $p->nombre }}
                                 </option>
                             @endforeach
@@ -47,7 +50,7 @@
 
                     <div class="col-md-4">
                         <label class="form-label">Fecha</label>
-                        <input type="date" name="fecha_compra" value="{{ old('fecha_compra', date('Y-m-d')) }}"
+                        <input type="date" name="fecha_compra" value="{{ old('fecha_compra', $editando ? \Illuminate\Support\Carbon::parse($compra->fecha_compra)->format('Y-m-d') : date('Y-m-d')) }}"
                                class="form-control" required>
                     </div>
 
@@ -88,10 +91,12 @@
                     </table>
                 </div>
 
-                <button type="submit" class="btn btn-success">Guardar Compra</button>
-                <button type="reset" class="btn btn-secondary">Limpiar</button>
+                <button type="submit" class="btn btn-success">{{ $editando ? 'Guardar cambios' : 'Guardar Compra' }}</button>
+                @unless($editando)
+                    <button type="reset" class="btn btn-secondary">Limpiar</button>
+                @endunless
                 <button type="button" class="btn btn-danger"
-                        onclick="window.location='{{ route('compras.index') }}'">Cancelar</button>
+                        onclick="window.location='{{ $editando ? route('compras.show', $compra->id_compra) : route('compras.index') }}'">Cancelar</button>
 
             </form>
 
@@ -100,6 +105,36 @@
     </div>
 
 </div>
+
+@php
+    // Filas con las que arranca el formulario: lo que se escribió (si
+    // hubo un error de validación), o las líneas de la compra que se
+    // edita; vacío = una fila en blanco.
+    $filasIniciales = [];
+    if (old('id_producto')) {
+        foreach (old('id_producto') as $i => $idp) {
+            $filasIniciales[] = [
+                'id_producto' => $idp,
+                'cantidad' => old('cantidad.' . $i),
+                'precio' => old('precio.' . $i),
+                'numero_lote' => old('numero_lote.' . $i),
+                'fecha_vencimiento' => old('fecha_vencimiento.' . $i),
+            ];
+        }
+    } elseif ($editando) {
+        foreach ($compra->detalles as $d) {
+            $filasIniciales[] = [
+                'id_producto' => $d->id_producto,
+                'cantidad' => $d->cantidad,
+                'precio' => \App\Support\Dinero::plano($d->precio_unitario),
+                'numero_lote' => $d->numero_lote,
+                'fecha_vencimiento' => $d->fecha_vencimiento
+                    ? \Illuminate\Support\Carbon::parse($d->fecha_vencimiento)->format('Y-m-d')
+                    : null,
+            ];
+        }
+    }
+@endphp
 
 {{-- Plantilla de una fila (no se envía, solo se clona por JS) --}}
 <template id="filaTemplate">
@@ -183,7 +218,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    function agregarFila() {
+    function agregarFila(datos) {
         const nodo = tpl.content.cloneNode(true);
         const fila = nodo.querySelector('tr');
 
@@ -206,14 +241,28 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         tbody.appendChild(fila);
+
+        if (datos) {
+            fila.querySelector('.select-producto').value = datos.id_producto ?? '';
+            fila.querySelector('.input-cantidad').value = datos.cantidad ?? 1;
+            fila.querySelector('.input-precio').value = datos.precio ?? 0;
+            fila.querySelector('[name="numero_lote[]"]').value = datos.numero_lote ?? '';
+            fila.querySelector('[name="fecha_vencimiento[]"]').value = datos.fecha_vencimiento ?? '';
+        }
+
         actualizarBotonesQuitar();
         recalcularTotal();
     }
 
-    btnAgregar.addEventListener('click', agregarFila);
+    btnAgregar.addEventListener('click', function () { agregarFila(); });
 
-    // arrancar con una fila
-    agregarFila();
+    // arrancar con las filas guardadas (o una en blanco)
+    const filasIniciales = @json($filasIniciales);
+    if (filasIniciales.length) {
+        filasIniciales.forEach(function (f) { agregarFila(f); });
+    } else {
+        agregarFila();
+    }
 });
 </script>
 

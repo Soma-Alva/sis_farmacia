@@ -68,12 +68,17 @@
         </div>
 
         @if($compra->estado == 'PENDIENTE')
-            <form action="{{ route('compras.aprobar', $compra->id_compra) }}" method="POST"
-                  class="mt-3"
-                  onsubmit="return confirm('¿Aprobar esta compra? Esto creará los lotes y sumará el stock.');">
-                @csrf
-                <button type="submit" class="gf-btn-primario" style="background:#2F6B45;">Aprobar compra</button>
-            </form>
+            <div class="d-flex gap-2 mt-3">
+                <a href="{{ route('compras.edit', $compra->id_compra) }}" class="gf-btn-primario" style="background:#4B7A61; text-decoration:none;">
+                    <i class="bi bi-pencil-square"></i> Editar compra
+                </a>
+
+                <form action="{{ route('compras.aprobar', $compra->id_compra) }}" method="POST"
+                      onsubmit="return confirm('¿Aprobar esta compra? Esto creará los lotes y sumará el stock.');">
+                    @csrf
+                    <button type="submit" class="gf-btn-primario" style="background:#2F6B45;">Aprobar compra</button>
+                </form>
+            </div>
         @endif
     </div>
 </div>
