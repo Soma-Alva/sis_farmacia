@@ -100,10 +100,21 @@
         vertical-align: top;
     }
 
+    /* Nombre del producto: si es largo, baja de línea en vez de
+       empujar y pegar las columnas numéricas. */
+    table.gf-ticket-detalle td:first-child,
+    table.gf-ticket-detalle th:first-child {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    /* Columnas numéricas: no se parten y siempre dejan un espacio
+       a su izquierda para que "100" y "2.90" no se lean "1002.90". */
     table.gf-ticket-detalle th.gf-ticket-num,
     table.gf-ticket-detalle td.gf-ticket-num {
         text-align: right;
         white-space: nowrap;
+        padding-left: 8px;
     }
 
     .gf-ticket-producto-codigo {
