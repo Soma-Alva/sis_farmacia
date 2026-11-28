@@ -792,5 +792,16 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 @stack('scripts')
+<script>
+    // La ruedita del mouse no debe cambiar el valor de un input numérico
+    // que tiene el foco: al girarla encima de él se le quita el foco, así
+    // el valor queda intacto y la página sigue haciendo scroll normal.
+    document.addEventListener('wheel', function (e) {
+        const el = document.activeElement;
+        if (el && el.type === 'number' && el === e.target) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+</script>
 </body>
 </html>
